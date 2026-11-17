@@ -1,0 +1,7 @@
+#!/bin/sh
+# Blocks a commit that contains secrets, weakens the app's security policy,
+# or leaves the single-file build out of date.
+# Enable once per clone:  git config core.hooksPath .githooks
+set -e
+node scripts/check-security.mjs --staged
+node scripts/build.mjs --check

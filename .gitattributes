@@ -1,0 +1,4 @@
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+dist/constellate.html linguist-generated=true

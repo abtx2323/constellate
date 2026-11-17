@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--CSP-->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'none'; base-uri 'none'; form-action 'none'; require-trusted-types-for 'script'">
+<!--/CSP-->
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0C2148">
+<title>Constellate</title>
+<link rel="icon" href="data:,">
+<!--STYLE-->
+<link rel="stylesheet" href="styles.css">
+<!--/STYLE-->
+</head>
+<body>
+<canvas id="sky" tabindex="0" aria-label="Star map of your skills. Open the menu and choose All skills for a list you can use with a keyboard or screen reader."></canvas>
+
+<header id="top">
+  <div class="top-row">
+    <button type="button" id="titleBtn" class="title" title="Rename chart">Constellate</button>
+    <button type="button" id="menuBtn" class="btn sky">Menu</button>
+  </div>
+  <div id="stats" role="status"></div>
+  <div id="timerBar" hidden></div>
+  <p id="hint" role="status" aria-live="polite" hidden></p>
+  <p id="toast" role="status" aria-live="polite" hidden></p>
+</header>
+
+<aside id="sheet" aria-label="Skill details" hidden></aside>
+
+<nav id="tools" aria-label="Chart tools">
+  <button type="button" id="addBtn" class="tool primary">Add skill</button>
+  <button type="button" id="linkBtn" class="tool" aria-pressed="false">Link</button>
+  <button type="button" id="nextBtn" class="tool">What next</button>
+  <button type="button" id="fitBtn" class="tool">Fit</button>
+  <button type="button" id="undoBtn" class="tool">Undo</button>
+</nav>
+
+<noscript><p class="noscript">Constellate needs JavaScript to draw your chart. It runs entirely on this device.</p></noscript>
+<!--SCRIPT-->
+<script type="module" src="src/ui/app.js"></script>
+<!--/SCRIPT-->
+</body>
+</html>

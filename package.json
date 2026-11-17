@@ -1,0 +1,14 @@
+{
+  "name": "constellate",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A private, offline skill-tree canvas. Skills are stars; practice lights them.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "test": "node --test",
+    "build": "node scripts/build.mjs",
+    "check": "node --test && node scripts/build.mjs --check && node scripts/check-security.mjs"
+  }
+}

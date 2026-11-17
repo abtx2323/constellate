@@ -1,0 +1,2587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-wYTTek3pwtX5MGA2wHIZdPou284goYP1zIdTWoCBSQo='; style-src 'sha256-G+zxPerataTEmX7ZFzObFAybBoUf7ICQ5wxoCp1ETso='; img-src blob: data:; connect-src 'none'; base-uri 'none'; form-action 'none'; require-trusted-types-for 'script'">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0C2148">
+<title>Constellate</title>
+<link rel="icon" href="data:,">
+<style>/* Constellate. A Prussian-blue star chart with an ivory legend sheet. */
+
+:root {
+  --sky-deep: #081530;
+  --sky: #0C2148;
+  --star-label: #F0E9D6;
+  --sky-text: #BECEEC;
+  --paper: #F1E9D8;
+  --paper-hi: #FAF5E8;
+  --edge: #D5C8AC;
+  --ink: #152750;
+  --muted: #56628A;
+  --gold: #E9B949;
+  --gold-deep: #B98A16;
+  --danger: #A23B28;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", "URW Palladio L", P052, Georgia, serif;
+  --sans: "Avenir Next", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", sans-serif;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--sky-deep);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-text-size-adjust: 100%;
+}
+
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+#sheet :focus-visible, #tools :focus-visible, .dlg :focus-visible { outline-color: var(--ink); }
+
+#sky {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  outline-offset: -4px;
+}
+
+/* Top of the chart: title, running totals, timer and messages. */
+#top {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 14px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  pointer-events: none;
+}
+#top > * { pointer-events: auto; }
+.top-row { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; pointer-events: none; }
+.top-row > * { pointer-events: auto; }
+
+.title {
+  min-width: 0;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--star-label);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 23px;
+  line-height: 1.2;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  color: var(--sky-text);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+#timerBar, #hint, #toast {
+  align-self: center;
+  max-width: min(520px, 100%);
+  margin: 6px 0 0;
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+#timerBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--paper);
+  box-shadow: 0 8px 24px rgba(3, 9, 24, 0.5);
+}
+.timer-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clock { font-variant-numeric: tabular-nums; font-weight: 600; }
+#hint { background: var(--gold); color: #2A2000; font-weight: 600; }
+#toast { background: rgba(8, 21, 48, 0.92); color: var(--star-label); border: 1px solid rgba(190, 206, 236, 0.35); }
+
+/* Tool bar */
+#tools {
+  position: fixed;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 2px;
+  max-width: calc(100vw - 12px);
+  padding: 5px;
+  border-radius: 15px;
+  background: var(--paper);
+  box-shadow: 0 10px 30px rgba(3, 9, 24, 0.55);
+}
+.tool {
+  min-height: 44px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 11px;
+  background: none;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.tool:hover { background: rgba(21, 39, 80, 0.08); }
+.tool.primary { background: var(--gold); color: #2A2000; }
+.tool.primary:hover { background: #F0C45C; }
+.tool[aria-pressed="true"] { background: var(--ink); color: var(--paper-hi); }
+.tool:disabled { color: rgba(21, 39, 80, 0.38); cursor: default; background: none; }
+
+/* Buttons */
+.btn {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(21, 39, 80, 0.3);
+  border-radius: 10px;
+  background: none;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.btn:hover { border-color: var(--ink); }
+.btn.gold { background: var(--gold); border-color: var(--gold-deep); color: #2A2000; }
+.btn.gold:hover { background: #F0C45C; }
+.btn.danger { color: var(--danger); border-color: rgba(162, 59, 40, 0.5); }
+.btn.quiet { border-color: transparent; color: var(--muted); padding: 0 8px; }
+.btn.small { min-height: 34px; padding: 0 12px; }
+.btn.wide { width: 100%; min-height: 46px; font-size: 15px; }
+.btn.sky { flex: none; color: var(--star-label); border-color: rgba(190, 206, 236, 0.45); background: rgba(8, 21, 48, 0.45); }
+.btn.sky:hover { border-color: var(--star-label); }
+
+/* Detail sheet: a card above the tool bar on phones, a side panel on wide screens. */
+#sheet {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  bottom: 74px;
+  max-height: 52vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px 16px 16px;
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow: 0 14px 40px rgba(3, 9, 24, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+@media (min-width: 820px) {
+  #sheet { left: auto; right: 16px; top: 84px; bottom: auto; width: 372px; max-height: calc(100vh - 180px); }
+}
+
+.sheet-head { display: flex; align-items: center; gap: 8px; }
+input.name {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 0 4px;
+  border: 0;
+  border-bottom: 1px solid var(--edge);
+  border-radius: 0;
+  background: none;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 24px;
+  line-height: 1.2;
+}
+.status { margin: 0; font-size: 14px; }
+
+.bar { position: relative; height: 9px; border-radius: 5px; background: #E0D5BC; overflow: hidden; }
+.bar-fill { height: 100%; width: 0; border-radius: 5px; box-shadow: inset 0 0 0 1px rgba(21, 39, 80, 0.28); }
+.tick { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(21, 39, 80, 0.4); }
+.t1 { left: 5%; } .t2 { left: 15%; } .t3 { left: 35%; } .t4 { left: 65%; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.actions .btn { flex: 1 1 auto; padding: 0 10px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid2 > :only-child { grid-column: 1 / -1; }
+
+.field { display: grid; gap: 4px; min-width: 0; }
+.field-label { font-size: 13px; font-weight: 600; color: var(--muted); }
+.field-help { font-size: 13px; color: var(--muted); }
+.field input, .field select, .field textarea, .dlg textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #BFB08F;
+  border-radius: 8px;
+  background: var(--paper-hi);
+  font-size: 16px;
+}
+textarea { resize: vertical; line-height: 1.4; }
+.field input[type="file"] { padding: 7px; font-size: 14px; }
+
+.open-link { align-self: flex-start; color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+.links { display: grid; gap: 8px; }
+.links:empty { display: none; }
+.link-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.chip { display: inline-flex; align-items: center; border: 1px solid var(--edge); border-radius: 999px; background: var(--paper-hi); }
+.chip-name { border: 0; background: none; padding: 6px 4px 6px 12px; font-size: 14px; font-family: var(--serif); font-style: italic; border-radius: 999px 0 0 999px; }
+.chip-x { border: 0; background: none; padding: 6px 12px 6px 6px; font-size: 12.5px; font-weight: 600; color: var(--danger); border-radius: 0 999px 999px 0; }
+.sheet-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding-top: 4px; }
+
+/* Dialogs */
+.dlg {
+  width: min(520px, calc(100vw - 20px));
+  max-height: min(86vh, 760px);
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 24px 70px rgba(2, 6, 18, 0.7);
+}
+.dlg[open] { display: flex; flex-direction: column; }
+.dlg:focus { outline: none; }
+.dlg::backdrop { background: rgba(4, 10, 26, 0.66); }
+.dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px 4px; }
+.dlg-head h2 { margin: 0; font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 26px; line-height: 1.2; }
+.dlg-body { padding: 6px 18px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.dlg-body p { margin: 0; max-width: 62ch; }
+.dlg-body form { display: flex; flex-direction: column; gap: 12px; }
+.dlg-body h3 { margin: 8px 0 -4px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.lede { font-family: var(--serif); font-size: 18px; line-height: 1.5; }
+.fine { font-size: 13px; color: var(--muted); }
+.fine:empty { display: none; }
+.warn { color: var(--danger); font-weight: 600; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
+.row.end { justify-content: flex-end; }
+
+.choices { display: grid; gap: 8px; }
+.choice {
+  display: grid;
+  gap: 1px;
+  padding: 11px 14px;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  background: var(--paper-hi);
+  text-align: left;
+}
+.choice:hover { border-color: var(--ink); }
+.choice strong { font-size: 15px; }
+.choice span { font-size: 13px; color: var(--muted); }
+
+.heat { display: grid; grid-template-rows: repeat(7, 1fr); grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; max-width: 300px; }
+.heat i { aspect-ratio: 1; border-radius: 2px; background: #1F3F7A; }
+.heat i.empty { background: #E0D5BC; }
+.preview { display: block; width: 100%; border-radius: 8px; }
+
+.noscript { position: fixed; inset: auto 16px 90px; padding: 14px; border-radius: 12px; background: var(--paper); }
+
+@media (max-width: 380px) {
+  .tool { padding: 0 9px; font-size: 13.5px; }
+  .title { font-size: 21px; }
+}
+</style>
+</head>
+<body>
+<canvas id="sky" tabindex="0" aria-label="Star map of your skills. Open the menu and choose All skills for a list you can use with a keyboard or screen reader."></canvas>
+
+<header id="top">
+  <div class="top-row">
+    <button type="button" id="titleBtn" class="title" title="Rename chart">Constellate</button>
+    <button type="button" id="menuBtn" class="btn sky">Menu</button>
+  </div>
+  <div id="stats" role="status"></div>
+  <div id="timerBar" hidden></div>
+  <p id="hint" role="status" aria-live="polite" hidden></p>
+  <p id="toast" role="status" aria-live="polite" hidden></p>
+</header>
+
+<aside id="sheet" aria-label="Skill details" hidden></aside>
+
+<nav id="tools" aria-label="Chart tools">
+  <button type="button" id="addBtn" class="tool primary">Add skill</button>
+  <button type="button" id="linkBtn" class="tool" aria-pressed="false">Link</button>
+  <button type="button" id="nextBtn" class="tool">What next</button>
+  <button type="button" id="fitBtn" class="tool">Fit</button>
+  <button type="button" id="undoBtn" class="tool">Undo</button>
+</nav>
+
+<noscript><p class="noscript">Constellate needs JavaScript to draw your chart. It runs entirely on this device.</p></noscript>
+<script>(() => {
+'use strict';
+// ---- src/core/model.js ----
+// Chart model: skills (nodes) and prerequisite links. Pure data, no DOM.
+// Everything that enters from outside (storage, import, paste) goes through
+// sanitizeChart(), which rebuilds the chart field by field.
+
+const SCHEMA_VERSION = 1;
+
+const LIMITS = Object.freeze({
+  nodes: 400,
+  links: 1200,
+  title: 80,
+  name: 60,
+  note: 2000,
+  url: 500,
+  logDays: 3660,
+  minutesPerDay: 1440,
+  targetHours: 10000,
+  coord: 1e6,
+});
+
+const ID_RE = /^[a-z0-9]{6,24}$/;
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function newId() {
+  const bytes = new Uint8Array(10);
+  globalThis.crypto.getRandomValues(bytes);
+  let out = '';
+  for (const b of bytes) out += (b % 36).toString(36);
+  return out;
+}
+
+function createChart(title) {
+  return {
+    v: SCHEMA_VERSION,
+    title: cleanText(title, LIMITS.title) || 'My chart',
+    nodes: [],
+    links: [],
+    timer: null,
+  };
+}
+
+function findNode(chart, id) {
+  return chart.nodes.find((n) => n.id === id) || null;
+}
+
+function addNode(chart, props) {
+  if (chart.nodes.length >= LIMITS.nodes) return null;
+  const p = props || {};
+  const node = {
+    id: newId(),
+    name: cleanText(p.name, LIMITS.name) || 'New skill',
+    kind: p.kind === 'milestone' ? 'milestone' : 'skill',
+    x: cleanCoord(p.x),
+    y: cleanCoord(p.y),
+    target: cleanTarget(p.target),
+    done: false,
+    note: '',
+    url: '',
+    log: [],
+  };
+  chart.nodes.push(node);
+  return node;
+}
+
+function removeNode(chart, id) {
+  chart.nodes = chart.nodes.filter((n) => n.id !== id);
+  chart.links = chart.links.filter((l) => l.from !== id && l.to !== id);
+  if (chart.timer && chart.timer.id === id) chart.timer = null;
+}
+
+function prerequisitesOf(chart, id) {
+  return chart.links.filter((l) => l.to === id).map((l) => findNode(chart, l.from)).filter(Boolean);
+}
+
+function dependentsOf(chart, id) {
+  return chart.links.filter((l) => l.from === id).map((l) => findNode(chart, l.to)).filter(Boolean);
+}
+
+// True when `target` can already be reached by following links from `start`.
+function reaches(chart, start, target) {
+  const next = new Map();
+  for (const l of chart.links) {
+    if (!next.has(l.from)) next.set(l.from, []);
+    next.get(l.from).push(l.to);
+  }
+  const seen = new Set([start]);
+  const stack = [start];
+  while (stack.length) {
+    const cur = stack.pop();
+    if (cur === target) return true;
+    for (const n of next.get(cur) || []) {
+      if (!seen.has(n)) { seen.add(n); stack.push(n); }
+    }
+  }
+  return false;
+}
+
+// `from` is the prerequisite, `to` is the skill it leads to.
+function addLink(chart, from, to) {
+  if (from === to) return { ok: false, reason: 'A skill cannot lead to itself.' };
+  if (!findNode(chart, from) || !findNode(chart, to)) return { ok: false, reason: 'That skill no longer exists.' };
+  if (chart.links.some((l) => l.from === from && l.to === to)) return { ok: false, reason: 'Those skills are already linked.' };
+  if (chart.links.length >= LIMITS.links) return { ok: false, reason: 'This chart has reached its link limit.' };
+  if (reaches(chart, to, from)) return { ok: false, reason: 'That link would make a loop.' };
+  chart.links.push({ from, to });
+  return { ok: true, reason: '' };
+}
+
+function removeLink(chart, from, to) {
+  chart.links = chart.links.filter((l) => !(l.from === from && l.to === to));
+}
+
+// --- cleaning helpers -------------------------------------------------------
+
+function cleanText(value, max) {
+  if (typeof value !== 'string') return '';
+  // Drop control characters except newline and tab, then trim and cap.
+  let out = '';
+  for (const ch of value) {
+    const c = ch.codePointAt(0);
+    if (c === 10 || c === 9 || (c >= 32 && c !== 127)) out += ch;
+  }
+  return out.trim().slice(0, max);
+}
+
+function cleanCoord(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(-LIMITS.coord, Math.min(LIMITS.coord, Math.round(n)));
+}
+
+function cleanTarget(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 20;
+  return Math.max(1, Math.min(LIMITS.targetHours, Math.round(n)));
+}
+
+// Only plain web links are kept. Anything else (javascript:, data:, file:) is dropped.
+function safeUrl(value) {
+  if (typeof value !== 'string') return '';
+  const text = value.trim().slice(0, LIMITS.url);
+  if (!text) return '';
+  let parsed;
+  try { parsed = new URL(text); } catch { return ''; }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return '';
+  if (parsed.username || parsed.password) return '';
+  return parsed.href.slice(0, LIMITS.url);
+}
+
+function isRealDay(day) {
+  if (typeof day !== 'string' || !DAY_RE.test(day)) return false;
+  const [y, m, d] = day.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d && y >= 1970 && y <= 2200;
+}
+
+function cleanLog(raw) {
+  if (!Array.isArray(raw)) return [];
+  const byDay = new Map();
+  for (const entry of raw.slice(0, LIMITS.logDays * 2)) {
+    if (!entry || typeof entry !== 'object') continue;
+    if (!isRealDay(entry.d)) continue;
+    const m = Math.floor(Number(entry.m));
+    if (!Number.isFinite(m) || m <= 0) continue;
+    byDay.set(entry.d, Math.min(LIMITS.minutesPerDay, (byDay.get(entry.d) || 0) + m));
+  }
+  return [...byDay.entries()]
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+    .slice(-LIMITS.logDays)
+    .map(([d, m]) => ({ d, m }));
+}
+
+// Rebuilds a chart from untrusted data. Unknown fields are dropped, bad
+// entries are skipped, and structural problems throw a readable error.
+function sanitizeChart(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('This is not a Constellate chart.');
+  if (raw.v !== SCHEMA_VERSION) throw new Error('This chart was made by a different version of Constellate.');
+  if (!Array.isArray(raw.nodes) || !Array.isArray(raw.links)) throw new Error('This chart is missing its skills or links.');
+  if (raw.nodes.length > LIMITS.nodes) throw new Error('This chart has more skills than Constellate allows.');
+  if (raw.links.length > LIMITS.links) throw new Error('This chart has more links than Constellate allows.');
+
+  const chart = createChart(raw.title);
+  const ids = new Set();
+  for (const rn of raw.nodes) {
+    if (!rn || typeof rn !== 'object') continue;
+    if (typeof rn.id !== 'string' || !ID_RE.test(rn.id) || ids.has(rn.id)) continue;
+    ids.add(rn.id);
+    chart.nodes.push({
+      id: rn.id,
+      name: cleanText(rn.name, LIMITS.name) || 'Unnamed skill',
+      kind: rn.kind === 'milestone' ? 'milestone' : 'skill',
+      x: cleanCoord(rn.x),
+      y: cleanCoord(rn.y),
+      target: cleanTarget(rn.target),
+      done: rn.done === true,
+      note: cleanText(rn.note, LIMITS.note),
+      url: safeUrl(rn.url),
+      log: cleanLog(rn.log),
+    });
+  }
+  for (const rl of raw.links) {
+    if (!rl || typeof rl !== 'object') continue;
+    if (!ids.has(rl.from) || !ids.has(rl.to)) continue;
+    addLink(chart, rl.from, rl.to); // rejects duplicates, self-links and loops
+  }
+  const t = raw.timer;
+  if (t && typeof t === 'object' && ids.has(t.id) && Number.isFinite(t.start) && t.start > 0) {
+    chart.timer = { id: t.id, start: Math.floor(t.start) };
+  }
+  return chart;
+}
+
+// ---- src/core/progress.js ----
+// Practice, levels, unlocking, streaks and "what next" suggestions.
+
+
+// Share of the target hours needed to reach each level. Early levels come
+// quickly on purpose: the first hour should visibly light the star.
+const LEVEL_SHARE = Object.freeze([0, 0.05, 0.15, 0.35, 0.65, 1]);
+const LEVEL_NAMES = Object.freeze(['Unlit', 'Ember', 'Glow', 'Shine', 'Bright', 'Brilliant']);
+const MAX_LEVEL = 5;
+const UNLOCK_LEVEL = 2;
+
+function minutesOf(node) {
+  let total = 0;
+  for (const e of node.log) total += e.m;
+  return total;
+}
+
+function levelOf(node) {
+  if (node.kind === 'milestone') return node.done ? MAX_LEVEL : 0;
+  const goal = node.target * 60;
+  const minutes = minutesOf(node);
+  let level = 0;
+  for (let i = 1; i <= MAX_LEVEL; i++) {
+    if (minutes >= Math.ceil(LEVEL_SHARE[i] * goal)) level = i;
+  }
+  return level;
+}
+
+// 0..1 across the whole target.
+function progressOf(node) {
+  if (node.kind === 'milestone') return node.done ? 1 : 0;
+  return Math.min(1, minutesOf(node) / (node.target * 60));
+}
+
+function minutesToNextLevel(node) {
+  if (node.kind === 'milestone') return 0;
+  const level = levelOf(node);
+  if (level >= MAX_LEVEL) return 0;
+  return Math.max(0, Math.ceil(LEVEL_SHARE[level + 1] * node.target * 60) - minutesOf(node));
+}
+
+// 0..1 from the current level to the next one.
+function levelProgress(node) {
+  if (node.kind === 'milestone') return node.done ? 1 : 0;
+  const level = levelOf(node);
+  if (level >= MAX_LEVEL) return 1;
+  const goal = node.target * 60;
+  const from = Math.ceil(LEVEL_SHARE[level] * goal);
+  const to = Math.ceil(LEVEL_SHARE[level + 1] * goal);
+  return Math.max(0, Math.min(1, (minutesOf(node) - from) / Math.max(1, to - from)));
+}
+
+function opensDependents(node) {
+  return node.kind === 'milestone' ? node.done : levelOf(node) >= UNLOCK_LEVEL;
+}
+
+// Prerequisites that still hold this skill back.
+function blockersOf(chart, node) {
+  return prerequisitesOf(chart, node.id).filter((p) => !opensDependents(p));
+}
+
+// 'locked' | 'open' | 'active' | 'mastered'
+function statusOf(chart, node) {
+  const level = levelOf(node);
+  if (level >= MAX_LEVEL) return 'mastered';
+  if (level >= 1 || minutesOf(node) > 0) return 'active';
+  return blockersOf(chart, node).length ? 'locked' : 'open';
+}
+
+function dayString(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function shiftDay(day, delta) {
+  const [y, m, d] = day.split('-').map(Number);
+  const dt = new Date(y, m - 1, d + delta);
+  return dayString(dt);
+}
+
+// Adds minutes to a day. Returns the minutes actually recorded (a day holds 24 h at most).
+function logPractice(node, minutes, day) {
+  const add = Math.floor(Number(minutes));
+  if (node.kind !== 'skill' || !Number.isFinite(add) || add <= 0) return 0;
+  let entry = node.log.find((e) => e.d === day);
+  if (!entry) {
+    entry = { d: day, m: 0 };
+    node.log.push(entry);
+    node.log.sort((a, b) => (a.d < b.d ? -1 : 1));
+    if (node.log.length > LIMITS.logDays) node.log.splice(0, node.log.length - LIMITS.logDays);
+  }
+  const before = entry.m;
+  entry.m = Math.min(LIMITS.minutesPerDay, entry.m + add);
+  return entry.m - before;
+}
+
+function minutesByDay(chart) {
+  const map = new Map();
+  for (const n of chart.nodes) {
+    for (const e of n.log) map.set(e.d, (map.get(e.d) || 0) + e.m);
+  }
+  return map;
+}
+
+// Consecutive practice days ending today, or yesterday if today is still empty.
+function streakOf(chart, today) {
+  const days = minutesByDay(chart);
+  let cursor = days.has(today) ? today : shiftDay(today, -1);
+  let count = 0;
+  while (days.has(cursor)) {
+    count++;
+    cursor = shiftDay(cursor, -1);
+  }
+  return count;
+}
+
+function totalsOf(chart) {
+  let minutes = 0;
+  let lit = 0;
+  let mastered = 0;
+  for (const n of chart.nodes) {
+    minutes += minutesOf(n);
+    const level = levelOf(n);
+    if (level >= 1) lit++;
+    if (level >= MAX_LEVEL) mastered++;
+  }
+  return { minutes, lit, mastered, count: chart.nodes.length };
+}
+
+// Oldest first, one entry per day, for the activity strip.
+function recentActivity(chart, today, dayCount) {
+  const days = minutesByDay(chart);
+  const out = [];
+  for (let i = dayCount - 1; i >= 0; i--) {
+    const d = shiftDay(today, -i);
+    out.push({ d, m: days.get(d) || 0 });
+  }
+  return out;
+}
+
+function formatMinutes(minutes) {
+  const m = Math.max(0, Math.round(minutes));
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  const rest = m % 60;
+  return rest ? `${h} h ${rest} min` : `${h} h`;
+}
+
+// Ranks the skills worth practicing now. Each suggestion carries a plain reason.
+function suggestNext(chart, limit) {
+  const out = [];
+  for (const node of chart.nodes) {
+    const status = statusOf(chart, node);
+    if (status === 'locked' || status === 'mastered') continue;
+    const waiting = dependentsOf(chart, node.id).filter((d) => {
+      const blockers = blockersOf(chart, d);
+      return blockers.length === 1 && blockers[0].id === node.id;
+    });
+    const toNext = minutesToNextLevel(node);
+    let score = waiting.length * 3 + (status === 'active' ? 1 : 0);
+    if (node.kind === 'skill' && toNext > 0) score += Math.max(0, 2 - toNext / 120);
+    let reason;
+    if (waiting.length) {
+      reason = waiting.length === 1 ? `Opens ${waiting[0].name}` : `Opens ${waiting.length} skills`;
+    } else if (node.kind === 'milestone') {
+      reason = 'Ready to complete';
+    } else if (status === 'open') {
+      reason = 'Ready to start';
+    } else {
+      reason = `${formatMinutes(toNext)} to level ${levelOf(node) + 1}`;
+    }
+    out.push({ node, score, reason });
+  }
+  out.sort((a, b) => b.score - a.score || (a.node.name < b.node.name ? -1 : 1));
+  return out.slice(0, limit || 3);
+}
+
+// ---- src/core/layout.js ----
+// Radial layout: starting skills sit near the centre and each prerequisite
+// step moves one ring outward, so the chart reads like a star map.
+
+const RING_GAP = 190;
+const MIN_ARC = 150;
+
+function tidyLayout(chart) {
+  const nodes = chart.nodes;
+  if (!nodes.length) return;
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const parents = new Map(nodes.map((n) => [n.id, []]));
+  for (const l of chart.links) {
+    if (byId.has(l.from) && byId.has(l.to)) parents.get(l.to).push(l.from);
+  }
+
+  // Depth = longest chain of prerequisites above the node.
+  const depth = new Map();
+  const depthOf = (id) => {
+    if (depth.has(id)) return depth.get(id);
+    depth.set(id, 0); // guards against bad data; real charts have no loops
+    let d = 0;
+    for (const p of parents.get(id)) d = Math.max(d, depthOf(p) + 1);
+    depth.set(id, d);
+    return d;
+  };
+  for (const n of nodes) depthOf(n.id);
+
+  // Each node hangs off its deepest prerequisite, which turns the graph into a tree.
+  const children = new Map(nodes.map((n) => [n.id, []]));
+  const roots = [];
+  for (const n of nodes) {
+    let best = null;
+    for (const p of parents.get(n.id)) {
+      if (best === null || depth.get(p) > depth.get(best)) best = p;
+    }
+    if (best === null) roots.push(n.id);
+    else children.get(best).push(n.id);
+  }
+
+  const weight = new Map();
+  const weigh = (id) => {
+    let w = 0;
+    for (const c of children.get(id)) w += weigh(c);
+    weight.set(id, Math.max(1, w));
+    return weight.get(id);
+  };
+  let total = 0;
+  for (const r of roots) total += weigh(r);
+
+  const single = roots.length === 1;
+  const perRing = new Map();
+  for (const n of nodes) {
+    const ring = depth.get(n.id) + (single ? 0 : 1);
+    perRing.set(ring, (perRing.get(ring) || 0) + 1);
+  }
+  const maxRing = Math.max(...perRing.keys());
+  const radius = [0];
+  for (let ring = 1; ring <= maxRing; ring++) {
+    const needed = ((perRing.get(ring) || 0) * MIN_ARC) / (2 * Math.PI);
+    radius[ring] = Math.max(radius[ring - 1] + RING_GAP, needed);
+  }
+
+  const place = (id, from, to) => {
+    const node = byId.get(id);
+    const ring = depth.get(id) + (single ? 0 : 1);
+    const angle = (from + to) / 2;
+    node.x = Math.round(Math.cos(angle) * radius[ring]);
+    node.y = Math.round(Math.sin(angle) * radius[ring]);
+    let cursor = from;
+    const span = to - from;
+    for (const c of children.get(id)) {
+      const share = (weight.get(c) / weight.get(id)) * span;
+      place(c, cursor, cursor + share);
+      cursor += share;
+    }
+  };
+
+  let cursor = -Math.PI / 2;
+  for (const r of roots) {
+    const share = (weight.get(r) / total) * Math.PI * 2;
+    place(r, cursor, cursor + share);
+    cursor += share;
+  }
+}
+
+function boundsOf(chart) {
+  if (!chart.nodes.length) return { minX: -200, minY: -200, maxX: 200, maxY: 200 };
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const n of chart.nodes) {
+    minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x);
+    minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y);
+  }
+  return { minX, minY, maxX, maxY };
+}
+
+// Camera that shows the whole chart inside a viewport, with room for labels.
+function fitCamera(chart, width, height, pad) {
+  const b = boundsOf(chart);
+  const margin = pad === undefined ? 90 : pad;
+  const w = Math.max(1, b.maxX - b.minX);
+  const h = Math.max(1, b.maxY - b.minY);
+  const k = Math.max(0.15, Math.min(1.4, Math.min((width - margin * 2) / w, (height - margin * 2) / h)));
+  return { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2, k };
+}
+
+// ---- src/core/vault.js ----
+// Passphrase encryption for saved charts and backups.
+// AES-256-GCM, key from PBKDF2-SHA-256. Uses the platform Web Crypto API only.
+
+const VAULT_FORMAT = 'constellate-vault';
+const KDF_ITERATIONS = 600000;
+const MIN_ITERATIONS = 100000;
+const MAX_ITERATIONS = 5000000;
+const SALT_BYTES = 16;
+const IV_BYTES = 12;
+const MAX_CIPHER_CHARS = 8 * 1024 * 1024;
+const AAD = new TextEncoder().encode('constellate-vault:v1');
+
+function toBase64(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+}
+
+function fromBase64(text) {
+  if (typeof text !== 'string' || !/^[A-Za-z0-9+/]*={0,2}$/.test(text)) throw new Error('This backup is damaged.');
+  const bin = atob(text);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+function passphraseProblem(passphrase) {
+  if (typeof passphrase !== 'string' || passphrase.length < 10) return 'Use at least 10 characters. A few random words work well.';
+  if (passphrase.length > 256) return 'Use 256 characters or fewer.';
+  if (new Set(passphrase).size < 5) return 'Use a wider mix of characters.';
+  return '';
+}
+
+async function deriveKey(passphrase, salt, iterations) {
+  const subtle = globalThis.crypto.subtle;
+  const material = await subtle.importKey('raw', new TextEncoder().encode(passphrase.normalize('NFKC')), 'PBKDF2', false, ['deriveKey']);
+  return subtle.deriveKey(
+    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations },
+    material,
+    { name: 'AES-GCM', length: 256 },
+    false, // not extractable: the raw key never reaches page code
+    ['encrypt', 'decrypt'],
+  );
+}
+
+// A vault key is derived once per session so saving stays fast.
+async function createVaultKey(passphrase) {
+  const salt = globalThis.crypto.getRandomValues(new Uint8Array(SALT_BYTES));
+  const key = await deriveKey(passphrase, salt, KDF_ITERATIONS);
+  return { key, salt, iterations: KDF_ITERATIONS };
+}
+
+function isEnvelope(value) {
+  return Boolean(value) && typeof value === 'object' && value.format === VAULT_FORMAT;
+}
+
+function checkEnvelope(env) {
+  if (!isEnvelope(env) || env.v !== 1 || env.kdf !== 'PBKDF2-SHA256') throw new Error('This backup uses a format Constellate cannot read.');
+  if (!Number.isInteger(env.iterations) || env.iterations < MIN_ITERATIONS || env.iterations > MAX_ITERATIONS) throw new Error('This backup is damaged.');
+  if (typeof env.data !== 'string' || env.data.length > MAX_CIPHER_CHARS) throw new Error('This backup is damaged.');
+  const salt = fromBase64(env.salt);
+  const iv = fromBase64(env.iv);
+  if (salt.length !== SALT_BYTES || iv.length !== IV_BYTES) throw new Error('This backup is damaged.');
+  return { salt, iv, data: fromBase64(env.data) };
+}
+
+async function vaultKeyFor(passphrase, envelope) {
+  const parts = checkEnvelope(envelope);
+  const key = await deriveKey(passphrase, parts.salt, envelope.iterations);
+  return { key, salt: parts.salt, iterations: envelope.iterations };
+}
+
+async function sealWithKey(vaultKey, plaintext) {
+  const iv = globalThis.crypto.getRandomValues(new Uint8Array(IV_BYTES)); // fresh for every save
+  const cipher = await globalThis.crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv, additionalData: AAD },
+    vaultKey.key,
+    new TextEncoder().encode(plaintext),
+  );
+  return {
+    format: VAULT_FORMAT,
+    v: 1,
+    kdf: 'PBKDF2-SHA256',
+    iterations: vaultKey.iterations,
+    salt: toBase64(vaultKey.salt),
+    iv: toBase64(iv),
+    data: toBase64(new Uint8Array(cipher)),
+  };
+}
+
+async function unsealWithKey(vaultKey, envelope) {
+  const parts = checkEnvelope(envelope);
+  let plain;
+  try {
+    plain = await globalThis.crypto.subtle.decrypt({ name: 'AES-GCM', iv: parts.iv, additionalData: AAD }, vaultKey.key, parts.data);
+  } catch {
+    throw new Error('Wrong passphrase, or the data was changed.');
+  }
+  return new TextDecoder().decode(plain);
+}
+
+async function seal(plaintext, passphrase) {
+  return sealWithKey(await createVaultKey(passphrase), plaintext);
+}
+
+async function unseal(envelope, passphrase) {
+  return unsealWithKey(await vaultKeyFor(passphrase, envelope), envelope);
+}
+
+// ---- src/core/templates.js ----
+// Starter charts. Each entry: [key, name, target hours] for a skill,
+// or [key, name, 'milestone'] for a one-off achievement.
+
+
+const TEMPLATES = Object.freeze([
+  {
+    key: 'frontend',
+    title: 'Front-end developer',
+    blurb: 'From HTML to shipping a tested, accessible app.',
+    nodes: [
+      ['html', 'HTML and semantics', 10], ['css', 'CSS layout', 20], ['js', 'JavaScript basics', 30],
+      ['git', 'Git', 10], ['a11y', 'Accessibility', 15], ['responsive', 'Responsive design', 15],
+      ['dom', 'DOM and events', 20], ['async', 'Async and APIs', 20], ['ts', 'TypeScript', 30],
+      ['framework', 'A UI framework', 40], ['testing', 'Testing', 25], ['perf', 'Performance', 20],
+      ['pr', 'First merged pull request', 'milestone'], ['ship', 'Ship a real project', 'milestone'],
+    ],
+    links: [
+      ['html', 'css'], ['html', 'a11y'], ['html', 'js'], ['css', 'responsive'], ['js', 'dom'], ['js', 'async'],
+      ['js', 'ts'], ['dom', 'framework'], ['async', 'framework'], ['framework', 'testing'], ['framework', 'perf'],
+      ['git', 'pr'], ['js', 'pr'], ['testing', 'ship'], ['a11y', 'ship'], ['responsive', 'ship'],
+    ],
+  },
+  {
+    key: 'manager',
+    title: 'New engineering manager',
+    blurb: 'The first year of leading a team.',
+    nodes: [
+      ['oneonone', 'One-on-ones', 15], ['feedback', 'Giving feedback', 15], ['delegate', 'Delegation', 15],
+      ['planning', 'Planning and estimates', 20], ['hiring', 'Hiring and interviews', 25], ['coaching', 'Coaching', 30],
+      ['conflict', 'Handling conflict', 15], ['strategy', 'Team strategy', 30], ['stake', 'Stakeholder updates', 15],
+      ['review', 'First review cycle', 'milestone'], ['hire', 'First hire onboarded', 'milestone'],
+    ],
+    links: [
+      ['oneonone', 'feedback'], ['oneonone', 'coaching'], ['feedback', 'conflict'], ['feedback', 'review'],
+      ['delegate', 'planning'], ['planning', 'strategy'], ['planning', 'stake'], ['hiring', 'hire'], ['coaching', 'review'],
+    ],
+  },
+  {
+    key: 'spanish',
+    title: 'Conversational Spanish',
+    blurb: 'From first words to a full conversation.',
+    nodes: [
+      ['sounds', 'Sounds and spelling', 5], ['core', 'First 500 words', 30], ['present', 'Present tense', 20],
+      ['listen', 'Listening', 60], ['past', 'Past tenses', 30], ['speak', 'Speaking practice', 60],
+      ['read', 'Reading', 40], ['subj', 'Subjunctive', 30],
+      ['order', 'Order a meal in Spanish', 'milestone'], ['talk', '30-minute conversation', 'milestone'],
+    ],
+    links: [
+      ['sounds', 'core'], ['core', 'present'], ['core', 'listen'], ['present', 'past'], ['present', 'speak'],
+      ['core', 'read'], ['past', 'subj'], ['speak', 'order'], ['speak', 'talk'], ['listen', 'talk'], ['past', 'talk'],
+    ],
+  },
+  {
+    key: 'marathon',
+    title: 'First marathon',
+    blurb: 'Build the base, then the distance.',
+    nodes: [
+      ['base', 'Easy running base', 40], ['strength', 'Strength work', 20], ['mobility', 'Mobility', 10],
+      ['long', 'Long runs', 50], ['tempo', 'Tempo runs', 25], ['fuel', 'Fuelling and hydration', 8],
+      ['pace', 'Race pacing', 15],
+      ['five', 'Run 5 km without stopping', 'milestone'], ['half', 'Finish a half marathon', 'milestone'],
+      ['full', 'Finish the marathon', 'milestone'],
+    ],
+    links: [
+      ['base', 'five'], ['base', 'long'], ['base', 'tempo'], ['five', 'half'], ['long', 'half'], ['long', 'fuel'],
+      ['tempo', 'pace'], ['half', 'full'], ['fuel', 'full'], ['pace', 'full'], ['strength', 'long'],
+    ],
+  },
+]);
+
+function chartFromTemplate(key) {
+  const tpl = TEMPLATES.find((t) => t.key === key);
+  if (!tpl) return null;
+  const chart = createChart(tpl.title);
+  const ids = new Map();
+  for (const [k, name, third] of tpl.nodes) {
+    const node = addNode(chart, third === 'milestone' ? { name, kind: 'milestone' } : { name, target: third });
+    ids.set(k, node.id);
+  }
+  for (const [a, b] of tpl.links) addLink(chart, ids.get(a), ids.get(b));
+  tidyLayout(chart);
+  return chart;
+}
+
+// The chart shown on first run: the front-end template with some practice
+// already logged, so a new visitor sees what a lit sky looks like.
+function sampleChart(today) {
+  const chart = chartFromTemplate('frontend');
+  const byName = new Map(chart.nodes.map((n) => [n.name, n]));
+  const plan = [
+    ['HTML and semantics', 600, 9], ['CSS layout', 780, 7], ['JavaScript basics', 640, 6], ['Git', 600, 8],
+    ['Accessibility', 150, 3], ['Responsive design', 140, 2], ['DOM and events', 70, 2],
+  ];
+  for (const [name, minutes, sessions] of plan) {
+    const node = byName.get(name);
+    const each = Math.floor(minutes / sessions);
+    for (let i = 0; i < sessions; i++) logPractice(node, each, shiftDay(today, -i * 2 - (name.length % 2)));
+  }
+  logPractice(byName.get('JavaScript basics'), 25, today);
+  logPractice(byName.get('CSS layout'), 30, shiftDay(today, -1));
+  byName.get('First merged pull request').done = true;
+  chart.title = 'Sample: front-end developer';
+  return chart;
+}
+
+// ---- src/ui/renderer.js ----
+// Draws the chart as a star map. Level sets a star's colour the way
+// temperature does in the real sky: red, orange, yellow, white, blue-white.
+
+
+const SKY = Object.freeze({
+  deep: '#081530',
+  mid: '#0C2148',
+  high: '#17376B',
+  grid: 'rgba(140, 172, 226, 0.11)',
+  gridStrong: 'rgba(140, 172, 226, 0.2)',
+  label: 'rgba(240, 233, 214, 0.95)',
+  labelDim: 'rgba(160, 180, 214, 0.62)',
+  line: 'rgba(236, 226, 196, 0.62)',
+  lineDim: 'rgba(132, 160, 208, 0.34)',
+  hollow: 'rgba(168, 194, 236, 0.9)',
+  gold: '#E9B949',
+});
+
+const STAR_COLORS = Object.freeze(['#8FA9D6', '#DC7460', '#EE9F5A', '#F6D573', '#FBF4E2', '#B5D0FF']);
+
+const SERIF = '"Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", "URW Palladio L", P052, Georgia, serif';
+
+function starRadius(info) {
+  if (info.status === 'locked') return 7;
+  return 9 + info.level * 2.2;
+}
+
+// Small deterministic generator so the background stars never jump around.
+function seeded(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const DUST = (() => {
+  const rand = seeded(20261116);
+  const out = [];
+  for (let i = 0; i < 150; i++) out.push({ x: rand(), y: rand(), s: 0.6 + rand() * 1.1, a: 0.18 + rand() * 0.5 });
+  return out;
+})();
+
+function splitLabel(name) {
+  if (name.length <= 18) return [name];
+  const mid = name.length / 2;
+  let best = -1;
+  for (let i = 0; i < name.length; i++) {
+    if (name[i] === ' ' && (best < 0 || Math.abs(i - mid) < Math.abs(best - mid))) best = i;
+  }
+  if (best < 0) return [name];
+  return [name.slice(0, best), name.slice(best + 1)];
+}
+
+function toScreen(view, wx, wy) {
+  return { x: (wx - view.cam.x) * view.cam.k + view.w / 2, y: (wy - view.cam.y) * view.cam.k + view.h / 2 };
+}
+
+function toWorld(view, sx, sy) {
+  return { x: (sx - view.w / 2) / view.cam.k + view.cam.x, y: (sy - view.h / 2) / view.cam.k + view.cam.y };
+}
+
+function drawBackground(ctx, view) {
+  const { w, h } = view;
+  const g = ctx.createRadialGradient(w / 2, h * 0.45, 0, w / 2, h * 0.45, Math.max(w, h) * 0.75);
+  g.addColorStop(0, SKY.high);
+  g.addColorStop(0.55, SKY.mid);
+  g.addColorStop(1, SKY.deep);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+
+  // Faint far stars with a little parallax.
+  const tile = 900;
+  const ox = -view.cam.x * view.cam.k * 0.12;
+  const oy = -view.cam.y * view.cam.k * 0.12;
+  ctx.fillStyle = '#DCE6FA';
+  for (let tx = -1; tx * tile < w; tx++) {
+    for (let ty = -1; ty * tile < h; ty++) {
+      for (const d of DUST) {
+        const x = (((d.x * tile + ox) % tile) + tile) % tile + tx * tile;
+        const y = (((d.y * tile + oy) % tile) + tile) % tile + ty * tile;
+        if (x < -2 || y < -2 || x > w + 2 || y > h + 2) continue;
+        ctx.globalAlpha = d.a;
+        ctx.fillRect(x, y, d.s, d.s);
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+// Rings and spokes centred on the chart origin, like a planisphere.
+function drawGrid(ctx, view) {
+  const k = view.cam.k;
+  const c = toScreen(view, 0, 0);
+  const corners = [[0, 0], [view.w, 0], [0, view.h], [view.w, view.h]];
+  let far = 0;
+  for (const [x, y] of corners) far = Math.max(far, Math.hypot(x - c.x, y - c.y));
+  const step = RING_GAP * k * (k < 0.3 ? 2 : 1);
+  const rings = Math.min(40, Math.ceil(far / step));
+  ctx.lineWidth = 1;
+  for (let i = 1; i <= rings; i++) {
+    ctx.strokeStyle = i % 3 === 0 ? SKY.gridStrong : SKY.grid;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, i * step, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = SKY.grid;
+  ctx.beginPath();
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    ctx.moveTo(c.x + Math.cos(a) * step, c.y + Math.sin(a) * step);
+    ctx.lineTo(c.x + Math.cos(a) * rings * step, c.y + Math.sin(a) * rings * step);
+  }
+  ctx.stroke();
+}
+
+function drawLinks(ctx, view, scene) {
+  const k = view.cam.k;
+  const byId = new Map(scene.chart.nodes.map((n) => [n.id, n]));
+  for (const l of scene.chart.links) {
+    const a = byId.get(l.from);
+    const b = byId.get(l.to);
+    if (!a || !b) continue;
+    const ia = scene.info.get(a.id);
+    const ib = scene.info.get(b.id);
+    const pa = toScreen(view, a.x, a.y);
+    const pb = toScreen(view, b.x, b.y);
+    const len = Math.hypot(pb.x - pa.x, pb.y - pa.y);
+    if (len < 1) continue;
+    const ux = (pb.x - pa.x) / len;
+    const uy = (pb.y - pa.y) / len;
+    const ra = Math.max(3, starRadius(ia) * k) + 6;
+    const rb = Math.max(3, starRadius(ib) * k) + 6;
+    if (len <= ra + rb) continue;
+    const bright = ia.level >= 1 && ib.level >= 1;
+    const open = ib.status !== 'locked';
+    ctx.strokeStyle = bright ? SKY.line : SKY.lineDim;
+    ctx.lineWidth = bright ? 1.6 : 1.1;
+    ctx.setLineDash(open ? [] : [3, 6]);
+    ctx.beginPath();
+    ctx.moveTo(pa.x + ux * ra, pa.y + uy * ra);
+    ctx.lineTo(pb.x - ux * rb, pb.y - uy * rb);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // A small chevron at the midpoint shows which way the path runs.
+    if (len > 70) {
+      const mx = (pa.x + pb.x) / 2;
+      const my = (pa.y + pb.y) / 2;
+      const s = 4.5;
+      ctx.beginPath();
+      ctx.moveTo(mx - ux * s - uy * s, my - uy * s + ux * s);
+      ctx.lineTo(mx + ux * s, my + uy * s);
+      ctx.lineTo(mx - ux * s + uy * s, my - uy * s - ux * s);
+      ctx.stroke();
+    }
+  }
+}
+
+function drawStar(ctx, x, y, r, node, info) {
+  const color = STAR_COLORS[info.level];
+  const milestone = node.kind === 'milestone';
+
+  if (info.level >= 1) {
+    const halo = r * (2.4 + info.level * 0.45);
+    const g = ctx.createRadialGradient(x, y, r * 0.4, x, y, halo);
+    g.addColorStop(0, color + '66');
+    g.addColorStop(0.4, color + '22');
+    g.addColorStop(1, color + '00');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, halo, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  if (info.level >= 5) {
+    // Diffraction spikes for a finished star.
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.2;
+    ctx.globalAlpha = 0.75;
+    const s = r * 3.1;
+    ctx.beginPath();
+    ctx.moveTo(x - s, y); ctx.lineTo(x + s, y);
+    ctx.moveTo(x, y - s); ctx.lineTo(x, y + s);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.beginPath();
+  if (milestone) {
+    const d = r * 1.15;
+    ctx.moveTo(x, y - d); ctx.lineTo(x + d, y); ctx.lineTo(x, y + d); ctx.lineTo(x - d, y);
+    ctx.closePath();
+  } else {
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+  }
+  if (info.level >= 1) {
+    ctx.fillStyle = color;
+    ctx.fill();
+  } else {
+    ctx.fillStyle = 'rgba(8, 21, 48, 0.85)';
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = info.status === 'locked' ? SKY.labelDim : SKY.hollow;
+    ctx.setLineDash(info.status === 'locked' ? [2.5, 3.5] : []);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Arc showing progress toward the next level.
+  if (!milestone && info.level < 5 && info.step > 0) {
+    ctx.strokeStyle = STAR_COLORS[info.level + 1];
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(x, y, r + 4.5, -Math.PI / 2, -Math.PI / 2 + info.step * Math.PI * 2);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+  }
+}
+
+function drawLabel(ctx, x, y, r, node, info, k, selected) {
+  if (k < 0.34 && !selected) return;
+  const size = Math.max(11.5, Math.min(17, 14 * Math.sqrt(k)));
+  ctx.font = `italic ${size}px ${SERIF}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const lines = splitLabel(node.name);
+  let ty = y + r + (selected ? 22 : 9);
+  for (const line of lines) {
+    ctx.lineWidth = 3.5;
+    ctx.strokeStyle = 'rgba(8, 21, 48, 0.8)';
+    ctx.lineJoin = 'round';
+    ctx.strokeText(line, x, ty);
+    ctx.fillStyle = info.status === 'locked' ? SKY.labelDim : SKY.label;
+    ctx.fillText(line, x, ty);
+    ty += size * 1.22;
+  }
+}
+
+function drawSelection(ctx, x, y, r, color) {
+  const rr = r + 11;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.arc(x, y, rr, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  for (let i = 0; i < 4; i++) {
+    const a = (i * Math.PI) / 2;
+    ctx.moveTo(x + Math.cos(a) * (rr + 3), y + Math.sin(a) * (rr + 3));
+    ctx.lineTo(x + Math.cos(a) * (rr + 9), y + Math.sin(a) * (rr + 9));
+  }
+  ctx.stroke();
+}
+
+// scene: { chart, info: Map(id -> {level, status, step}), selId, linkFrom, timerId, bursts, now }
+// Returns true while an animation still needs more frames.
+function drawSky(ctx, view, scene) {
+  ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+  drawBackground(ctx, view);
+  drawGrid(ctx, view);
+  drawLinks(ctx, view, scene);
+
+  const k = view.cam.k;
+  for (const node of scene.chart.nodes) {
+    const info = scene.info.get(node.id);
+    const p = toScreen(view, node.x, node.y);
+    const r = Math.max(3, starRadius(info) * k);
+    if (p.x < -160 || p.y < -160 || p.x > view.w + 160 || p.y > view.h + 160) continue;
+    drawStar(ctx, p.x, p.y, r, node, info);
+    if (scene.timerId === node.id) {
+      ctx.fillStyle = SKY.gold;
+      ctx.beginPath();
+      ctx.arc(p.x + r + 7, p.y - r - 7, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (scene.selId === node.id) drawSelection(ctx, p.x, p.y, r, SKY.label);
+    if (scene.linkFrom === node.id) drawSelection(ctx, p.x, p.y, r, SKY.gold);
+    drawLabel(ctx, p.x, p.y, r, node, info, k, scene.selId === node.id || scene.linkFrom === node.id);
+  }
+
+  let animating = false;
+  for (const b of scene.bursts || []) {
+    const t = (scene.now - b.t0) / 900;
+    if (t < 0 || t >= 1) continue;
+    animating = true;
+    const p = toScreen(view, b.x, b.y);
+    const ease = 1 - (1 - t) * (1 - t);
+    ctx.strokeStyle = b.color;
+    ctx.globalAlpha = 1 - t;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 14 + ease * 70, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 8 + ease * 38, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  return animating;
+}
+
+// Nearest skill under a point, with a touch-friendly reach.
+function nodeAt(chart, info, wx, wy, k) {
+  let best = null;
+  let bestDist = Infinity;
+  for (const node of chart.nodes) {
+    const reach = Math.max(starRadius(info.get(node.id)) + 8, 24 / k);
+    const d = Math.hypot(node.x - wx, node.y - wy);
+    if (d <= reach && d < bestDist) { best = node; bestDist = d; }
+  }
+  return best;
+}
+
+// ---- src/ui/dom.js ----
+// DOM helpers. Text always goes in through textContent, never as markup.
+
+function el(tag, props, children) {
+  const node = document.createElement(tag);
+  const p = props || {};
+  for (const key of Object.keys(p)) {
+    const value = p[key];
+    if (value === undefined || value === null || value === false) continue;
+    if (key === 'class') node.className = value;
+    else if (key === 'text') node.textContent = value;
+    else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+    else if (key === 'value') node.value = value;
+    else node.setAttribute(key, value === true ? '' : String(value));
+  }
+  for (const child of children || []) {
+    if (child) node.append(child);
+  }
+  return node;
+}
+
+function clear(node) {
+  while (node.firstChild) node.removeChild(node.firstChild);
+}
+
+function button(label, onclick, cls) {
+  return el('button', { type: 'button', class: cls || 'btn', text: label, onclick });
+}
+
+// A modal built on <dialog>. `build(body, close)` fills it in.
+function openDialog(title, build, options) {
+  const opts = options || {};
+  const dialog = el('dialog', { class: 'dlg', 'aria-label': title, tabindex: '-1' });
+  const close = () => dialog.close();
+  const head = el('div', { class: 'dlg-head' }, [
+    el('h2', { text: title }),
+    opts.sticky ? null : button('Close', close, 'btn quiet'),
+  ]);
+  const body = el('div', { class: 'dlg-body' });
+  dialog.append(head, body);
+  document.body.append(dialog);
+  dialog.addEventListener('close', () => {
+    dialog.remove();
+    if (opts.onClose) opts.onClose();
+  });
+  if (opts.sticky) dialog.addEventListener('cancel', (e) => e.preventDefault());
+  dialog.showModal();
+  build(body, close);
+  // Unless the builder focused a field, rest focus on the dialog itself.
+  if (!body.contains(document.activeElement)) dialog.focus();
+  return dialog;
+}
+
+function field(label, input, help) {
+  return el('label', { class: 'field' }, [
+    el('span', { class: 'field-label', text: label }),
+    input,
+    help ? el('span', { class: 'field-help', text: help }) : null,
+  ]);
+}
+
+// ---- src/ui/app.js ----
+// Constellate: the canvas app. No network calls, no markup injection.
+
+
+const APP_NAME = 'Constellate';
+const STORE_KEY = 'constellate.chart.v1';
+const MAX_IMPORT_CHARS = 10 * 1024 * 1024;
+const MAX_TIMER_MINUTES = 480;
+// Set by the embed build for hosts that block file downloads from a page.
+const EMBEDDED = document.documentElement.hasAttribute('data-embed');
+
+const canvas = document.getElementById('sky');
+const ctx = canvas.getContext('2d');
+const ui = {
+  title: document.getElementById('titleBtn'),
+  stats: document.getElementById('stats'),
+  menu: document.getElementById('menuBtn'),
+  timer: document.getElementById('timerBar'),
+  add: document.getElementById('addBtn'),
+  link: document.getElementById('linkBtn'),
+  next: document.getElementById('nextBtn'),
+  fit: document.getElementById('fitBtn'),
+  undo: document.getElementById('undoBtn'),
+  sheet: document.getElementById('sheet'),
+  hint: document.getElementById('hint'),
+  toast: document.getElementById('toast'),
+};
+
+const S = {
+  chart: createChart('My chart'),
+  cam: { x: 0, y: 0, k: 1 },
+  view: { w: 1, h: 1, dpr: 1, cam: null },
+  info: new Map(),
+  sel: null,
+  linking: false,
+  linkFrom: null,
+  undo: [],
+  redo: [],
+  vault: null,      // session key when the chart is passphrase-protected
+  locked: false,    // true while an encrypted chart waits for its passphrase
+  bursts: [],
+  storageWarned: false,
+};
+S.view.cam = S.cam;
+
+const today = () => dayString(new Date());
+const reducedMotion = () => globalThis.matchMedia && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// --- storage ----------------------------------------------------------------
+
+function storeGet(key) {
+  try { return globalThis.localStorage.getItem(key); } catch { return null; }
+}
+
+function storeSet(key, value) {
+  try {
+    globalThis.localStorage.setItem(key, value);
+    return true;
+  } catch {
+    if (!S.storageWarned) {
+      S.storageWarned = true;
+      toast('This browser is not keeping changes. Export a backup from the menu to keep your chart.', 7000);
+    }
+    return false;
+  }
+}
+
+let saveTimer = 0;
+let saveChain = Promise.resolve();
+
+function scheduleSave() {
+  if (S.locked) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveNow, 350);
+}
+
+function saveNow() {
+  clearTimeout(saveTimer);
+  if (S.locked) return saveChain;
+  const plain = JSON.stringify(S.chart);
+  const vault = S.vault;
+  saveChain = saveChain.then(async () => {
+    const text = vault ? JSON.stringify(await sealWithKey(vault, plain)) : plain;
+    storeSet(STORE_KEY, text);
+  }).catch(() => {});
+  return saveChain;
+}
+
+// --- state changes ----------------------------------------------------------
+
+function rebuildInfo() {
+  S.info = new Map();
+  for (const node of S.chart.nodes) {
+    S.info.set(node.id, { level: levelOf(node), status: statusOf(S.chart, node), step: levelProgress(node) });
+  }
+}
+
+function pushUndo() {
+  S.undo.push(JSON.stringify(S.chart));
+  if (S.undo.length > 60) S.undo.shift();
+  S.redo = [];
+}
+
+function restore(snapshot) {
+  const timer = S.chart.timer;
+  S.chart = sanitizeChart(JSON.parse(snapshot));
+  S.chart.timer = timer && findNode(S.chart, timer.id) ? timer : null;
+  if (S.sel && !findNode(S.chart, S.sel)) S.sel = null;
+  S.linkFrom = null;
+  changed();
+  buildSheet();
+}
+
+function undo() {
+  if (!S.undo.length) return toast('Nothing to undo.');
+  S.redo.push(JSON.stringify(S.chart));
+  restore(S.undo.pop());
+}
+
+function redo() {
+  if (!S.redo.length) return toast('Nothing to redo.');
+  S.undo.push(JSON.stringify(S.chart));
+  restore(S.redo.pop());
+}
+
+// Call after any change to the chart.
+function changed() {
+  rebuildInfo();
+  scheduleSave();
+  refreshHud();
+  refreshSheet();
+  render();
+}
+
+function setChart(chart, options) {
+  S.chart = chart;
+  S.sel = null;
+  S.linkFrom = null;
+  setLinking(false);
+  rebuildInfo();
+  buildSheet();
+  refreshHud();
+  homeView();
+  if (!options || options.save !== false) scheduleSave();
+}
+
+// --- rendering --------------------------------------------------------------
+
+let frame = 0;
+function render() {
+  if (frame) return;
+  frame = requestAnimationFrame(() => {
+    frame = 0;
+    const now = performance.now();
+    const more = drawSky(ctx, S.view, {
+      chart: S.chart, info: S.info, selId: S.sel, linkFrom: S.linkFrom,
+      timerId: S.chart.timer ? S.chart.timer.id : null, bursts: S.bursts, now,
+    });
+    S.bursts = S.bursts.filter((b) => now - b.t0 < 900);
+    if (more || camTween) render();
+  });
+}
+
+function resize() {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = Math.min(3, globalThis.devicePixelRatio || 1);
+  S.view.w = Math.max(1, rect.width);
+  S.view.h = Math.max(1, rect.height);
+  S.view.dpr = dpr;
+  canvas.width = Math.round(S.view.w * dpr);
+  canvas.height = Math.round(S.view.h * dpr);
+  render();
+}
+
+// The part of the canvas not covered by the detail sheet or the bars.
+function freeArea() {
+  const top = (ui.timer.hidden ? ui.stats : ui.timer).getBoundingClientRect().bottom;
+  const area = { left: 0, top: top + 10, right: S.view.w, bottom: S.view.h - 76 };
+  if (!ui.sheet.hidden) {
+    const r = ui.sheet.getBoundingClientRect();
+    if (r.width > S.view.w * 0.7) area.bottom = Math.min(area.bottom, r.top - 6);
+    else area.right = r.left;
+  }
+  return area;
+}
+
+let camTween = null;
+function moveCamera(target, instant) {
+  if (instant || reducedMotion()) {
+    Object.assign(S.cam, target);
+    camTween = null;
+    render();
+    return;
+  }
+  const from = { ...S.cam };
+  const t0 = performance.now();
+  camTween = true;
+  const step = () => {
+    const t = Math.min(1, (performance.now() - t0) / 260);
+    const e = 1 - Math.pow(1 - t, 3);
+    S.cam.x = from.x + (target.x - from.x) * e;
+    S.cam.y = from.y + (target.y - from.y) * e;
+    S.cam.k = from.k + (target.k - from.k) * e;
+    if (t < 1 && camTween) requestAnimationFrame(step);
+    else camTween = null;
+    render();
+  };
+  requestAnimationFrame(step);
+}
+
+function fitView(instant) {
+  const a = freeArea();
+  const w = Math.max(120, a.right - a.left);
+  const h = Math.max(120, a.bottom - a.top);
+  const cam = fitCamera(S.chart, w, h, Math.min(90, w * 0.16));
+  // Shift so the chart centre lands in the middle of the free area.
+  cam.x -= ((a.left + a.right) / 2 - S.view.w / 2) / cam.k;
+  cam.y -= ((a.top + a.bottom) / 2 - S.view.h / 2) / cam.k;
+  moveCamera(cam, instant !== false);
+}
+
+// Camera that puts a chart point in the middle of the free area.
+function cameraAt(x, y, k) {
+  const a = freeArea();
+  return {
+    k,
+    x: x - ((a.left + a.right) / 2 - S.view.w / 2) / k,
+    y: y - ((a.top + a.bottom) / 2 - S.view.h / 2) / k,
+  };
+}
+
+function revealNode(node) {
+  const a = freeArea();
+  const p = toScreen(S.view, node.x, node.y);
+  const padX = Math.min(70, (a.right - a.left) / 4);
+  const padY = Math.min(70, (a.bottom - a.top) / 4);
+  const readable = S.cam.k >= 0.36;
+  if (readable && p.x > a.left + padX && p.x < a.right - padX && p.y > a.top + padY && p.y < a.bottom - padY - 20) return;
+  moveCamera(cameraAt(node.x, node.y, Math.max(S.cam.k, 0.6)));
+}
+
+// Opening view. On a small screen the whole chart is too small to read, so
+// start close in on the stars that are already lit.
+function homeView() {
+  fitView(true);
+  if (S.cam.k >= 0.36 || !S.chart.nodes.length) return;
+  const lit = S.chart.nodes.filter((n) => S.info.get(n.id).level >= 1);
+  const open = S.chart.nodes.filter((n) => S.info.get(n.id).status === 'open');
+  const pool = lit.length ? lit : open.length ? open : S.chart.nodes;
+  let x = 0;
+  let y = 0;
+  for (const n of pool) { x += n.x; y += n.y; }
+  moveCamera(cameraAt(x / pool.length, y / pool.length, 0.56), true);
+}
+
+// --- messages ---------------------------------------------------------------
+
+let toastTimer = 0;
+function toast(message, ms) {
+  ui.toast.textContent = message;
+  ui.toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { ui.toast.hidden = true; }, ms || 3200);
+}
+
+function setHint(message) {
+  ui.hint.textContent = message || '';
+  ui.hint.hidden = !message;
+}
+
+// --- top bar ----------------------------------------------------------------
+
+let timerTick = 0;
+function refreshHud() {
+  ui.title.textContent = S.chart.title;
+  const t = totalsOf(S.chart);
+  const streak = streakOf(S.chart, today());
+  clear(ui.stats);
+  const parts = [`${formatMinutes(t.minutes)} practiced`, `${t.lit} of ${t.count} lit`];
+  if (streak > 0) parts.push(`${streak}-day streak`);
+  for (const text of parts) ui.stats.append(el('span', { text }));
+  ui.undo.disabled = S.undo.length === 0;
+  refreshTimer();
+}
+
+function refreshTimer() {
+  clearInterval(timerTick);
+  const timer = S.chart.timer;
+  const node = timer ? findNode(S.chart, timer.id) : null;
+  clear(ui.timer);
+  ui.timer.hidden = !node;
+  if (!node) return;
+  const clock = el('span', { class: 'clock' });
+  const paint = () => {
+    const secs = Math.max(0, Math.floor((Date.now() - timer.start) / 1000));
+    const h = Math.floor(secs / 3600);
+    const m = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
+    const s = String(secs % 60).padStart(2, '0');
+    clock.textContent = h ? `${h}:${m}:${s}` : `${m}:${s}`;
+  };
+  paint();
+  timerTick = setInterval(paint, 1000);
+  ui.timer.append(
+    el('span', { class: 'timer-name', text: `Practicing ${node.name}` }),
+    clock,
+    button('Stop and log', stopTimer, 'btn gold small'),
+  );
+}
+
+function startTimer(node) {
+  if (S.chart.timer) stopTimer();
+  S.chart.timer = { id: node.id, start: Date.now() };
+  changed();
+  toast(`Timer started for ${node.name}.`);
+}
+
+function stopTimer() {
+  const timer = S.chart.timer;
+  if (!timer) return;
+  const node = findNode(S.chart, timer.id);
+  let minutes = Math.round((Date.now() - timer.start) / 60000);
+  const over = minutes > MAX_TIMER_MINUTES;
+  minutes = Math.max(1, Math.min(MAX_TIMER_MINUTES, minutes));
+  pushUndo();
+  S.chart.timer = null;
+  if (node) practice(node, minutes, true);
+  else changed();
+  if (over) toast(`The timer ran past 8 hours, so 8 hours were logged. Undo if that is wrong.`, 6000);
+}
+
+// --- practice ---------------------------------------------------------------
+
+function practice(node, minutes, undoAlreadyPushed) {
+  const before = new Map(S.info);
+  if (!undoAlreadyPushed) pushUndo();
+  const added = logPractice(node, minutes, today());
+  changed();
+  if (!added) return toast('That day is already full.');
+  announceProgress(node, before, `Logged ${formatMinutes(added)} on ${node.name}.`);
+}
+
+function announceProgress(node, before, fallback) {
+  const was = before.get(node.id);
+  const now = S.info.get(node.id);
+  const opened = S.chart.nodes.filter((n) => {
+    const b = before.get(n.id);
+    return b && b.status === 'locked' && S.info.get(n.id).status === 'open';
+  });
+  if (now.level > (was ? was.level : 0)) {
+    S.bursts.push({ x: node.x, y: node.y, t0: performance.now(), color: STAR_COLORS[now.level] });
+    render();
+  }
+  if (opened.length) {
+    for (const n of opened) S.bursts.push({ x: n.x, y: n.y, t0: performance.now() + 250, color: STAR_COLORS[0] });
+    toast(opened.length === 1 ? `${node.name} opened ${opened[0].name}.` : `${node.name} opened ${opened.length} skills.`, 4500);
+    render();
+  } else if (now.level > (was ? was.level : 0)) {
+    toast(now.level >= MAX_LEVEL ? `${node.name} is complete.` : `${node.name} reached level ${now.level}, ${LEVEL_NAMES[now.level]}.`, 4500);
+  } else if (fallback) {
+    toast(fallback);
+  }
+}
+
+// --- skills and links -------------------------------------------------------
+
+function select(id, options) {
+  S.sel = id;
+  buildSheet();
+  const node = id ? findNode(S.chart, id) : null;
+  if (node && (!options || options.reveal !== false)) revealNode(node);
+  render();
+}
+
+function addSkillAt(x, y) {
+  if (S.chart.nodes.length >= LIMITS.nodes) return toast(`A chart holds up to ${LIMITS.nodes} skills.`);
+  pushUndo();
+  const node = addNode(S.chart, { x, y });
+  changed();
+  select(node.id);
+  const input = ui.sheet.querySelector('input.name');
+  if (input) { input.focus(); input.select(); }
+}
+
+function addSkill() {
+  const a = freeArea();
+  let p = toWorld(S.view, (a.left + a.right) / 2, (a.top + a.bottom) / 2);
+  // Step aside until the spot is free.
+  for (let i = 0; i < 40 && nodeAt(S.chart, S.info, p.x, p.y, 1); i++) p = { x: p.x + 70, y: p.y + (i % 2 ? 50 : -30) };
+  addSkillAt(p.x, p.y);
+}
+
+function deleteSkill(node) {
+  pushUndo();
+  removeNode(S.chart, node.id);
+  if (S.sel === node.id) S.sel = null;
+  changed();
+  buildSheet();
+  toast(`Deleted ${node.name}. Undo brings it back.`);
+}
+
+function setLinking(on, fromId) {
+  S.linking = on;
+  S.linkFrom = on ? fromId || null : null;
+  ui.link.setAttribute('aria-pressed', on ? 'true' : 'false');
+  ui.link.textContent = on ? 'Done' : 'Link';
+  if (!on) setHint('');
+  else setHint(S.linkFrom ? 'Now tap the skill it leads to.' : 'Tap the skill that comes first.');
+  render();
+}
+
+function linkTap(node) {
+  if (!S.linkFrom) {
+    S.linkFrom = node.id;
+    setHint(`${node.name} comes first. Now tap the skill it leads to.`);
+    return render();
+  }
+  if (S.linkFrom === node.id) {
+    S.linkFrom = null;
+    setHint('Tap the skill that comes first.');
+    return render();
+  }
+  const from = findNode(S.chart, S.linkFrom);
+  const snapshot = JSON.stringify(S.chart);
+  const result = addLink(S.chart, S.linkFrom, node.id);
+  if (!result.ok) return toast(result.reason);
+  S.undo.push(snapshot);
+  S.redo = [];
+  S.linkFrom = null;
+  setHint('Linked. Tap another first skill, or choose Done.');
+  changed();
+  toast(`${from.name} now leads to ${node.name}.`);
+}
+
+// --- detail sheet -----------------------------------------------------------
+
+let sheetRefs = null;
+
+// Records one undo step the first time a field changes after it gains focus.
+function editable(input, apply) {
+  let armed = false;
+  input.addEventListener('focus', () => { armed = true; });
+  input.addEventListener('input', () => {
+    if (armed) { pushUndo(); armed = false; }
+    apply(input.value);
+    rebuildInfo();
+    scheduleSave();
+    refreshHud();
+    refreshSheet();
+    render();
+  });
+}
+
+function buildSheet() {
+  const node = S.sel ? findNode(S.chart, S.sel) : null;
+  clear(ui.sheet);
+  sheetRefs = null;
+  ui.sheet.hidden = !node;
+  document.body.classList.toggle('sheet-open', Boolean(node));
+  if (!node) return;
+
+  const name = el('input', { class: 'name', type: 'text', maxlength: LIMITS.name, value: node.name, 'aria-label': 'Skill name', autocomplete: 'off', spellcheck: 'true' });
+  editable(name, (v) => { node.name = cleanText(v, LIMITS.name) || 'Unnamed skill'; });
+
+  const status = el('p', { class: 'status' });
+  const bar = el('div', { class: 'bar', role: 'img' }, [el('div', { class: 'bar-fill' })]);
+  for (let i = 1; i < MAX_LEVEL; i++) bar.append(el('i', { class: `tick t${i}` }));
+  const actions = el('div', { class: 'actions' });
+  const links = el('div', { class: 'links' });
+
+  const kind = el('select', { 'aria-label': 'Kind' }, [
+    el('option', { value: 'skill', text: 'Practice skill' }),
+    el('option', { value: 'milestone', text: 'One-time milestone' }),
+  ]);
+  kind.value = node.kind;
+  kind.addEventListener('change', () => {
+    pushUndo();
+    node.kind = kind.value === 'milestone' ? 'milestone' : 'skill';
+    if (node.kind === 'milestone' && S.chart.timer && S.chart.timer.id === node.id) S.chart.timer = null;
+    changed();
+    buildSheet();
+  });
+
+  const target = el('input', { type: 'number', min: 1, max: LIMITS.targetHours, step: 1, value: node.target, inputmode: 'numeric' });
+  editable(target, (v) => { node.target = cleanTarget(v); });
+
+  const note = el('textarea', { rows: 3, maxlength: LIMITS.note, value: node.note, placeholder: 'What to practice, what worked, what to try next' });
+  editable(note, (v) => { node.note = cleanText(v, LIMITS.note); });
+
+  const url = el('input', { type: 'url', maxlength: LIMITS.url, value: node.url, placeholder: 'Web address of a course, book or doc', autocomplete: 'off' });
+  const open = el('a', { class: 'open-link', target: '_blank', rel: 'noopener noreferrer', text: 'Open link' });
+  editable(url, (v) => { node.url = safeUrl(v); });
+  url.addEventListener('change', () => {
+    if (url.value.trim() && !node.url) toast('Only web links that start with http or https are kept.');
+  });
+
+  ui.sheet.append(
+    el('div', { class: 'sheet-head' }, [name, button('Close', () => select(null), 'btn quiet')]),
+    status, bar, actions,
+    el('div', { class: 'grid2' }, [
+      field('Kind', kind),
+      node.kind === 'skill' ? field('Hours to finish', target) : null,
+    ]),
+    field('Notes', note),
+    field('Resource', url),
+    open,
+    links,
+    el('div', { class: 'sheet-foot' }, [
+      button('Link to another skill', () => { setLinking(true, node.id); }, 'btn'),
+      button('Delete skill', () => deleteSkill(node), 'btn danger'),
+    ]),
+  );
+  sheetRefs = { node, status, bar, actions, links, open };
+  refreshSheet();
+}
+
+function refreshSheet() {
+  if (!sheetRefs) return;
+  const { node, status, bar, actions, links, open } = sheetRefs;
+  if (!findNode(S.chart, node.id)) return;
+  const info = S.info.get(node.id);
+  const blockers = blockersOf(S.chart, node);
+  const minutes = minutesOf(node);
+
+  let line;
+  if (node.kind === 'milestone') {
+    line = node.done ? 'Done.' : blockers.length ? '' : 'Not done yet.';
+  } else if (info.level >= MAX_LEVEL) {
+    line = `Level 5, ${LEVEL_NAMES[5]}. ${formatMinutes(minutes)} practiced.`;
+  } else {
+    line = `Level ${info.level}, ${LEVEL_NAMES[info.level]}. ${formatMinutes(minutes)} practiced, ${formatMinutes(minutesToNextLevel(node))} to level ${info.level + 1}.`;
+  }
+  if (blockers.length && info.level < MAX_LEVEL) {
+    const names = blockers.map((b) => (b.kind === 'milestone' ? `${b.name} done` : `${b.name} at level ${UNLOCK_LEVEL}`));
+    line = `Waiting on ${names.join(' and ')}. ${line}`.trim();
+  }
+  status.textContent = line;
+
+  const pct = Math.round(progressOf(node) * 100);
+  bar.firstChild.style.setProperty('width', `${pct}%`);
+  bar.firstChild.style.setProperty('background', STAR_COLORS[Math.max(1, info.level)]);
+  bar.setAttribute('aria-label', `${pct} percent of the way to finished`);
+  bar.hidden = node.kind === 'milestone';
+
+  clear(actions);
+  if (node.kind === 'milestone') {
+    actions.append(button(node.done ? 'Mark as not done' : 'Mark as done', () => {
+      const before = new Map(S.info);
+      pushUndo();
+      node.done = !node.done;
+      changed();
+      if (node.done) announceProgress(node, before, `${node.name} is done.`);
+    }, node.done ? 'btn' : 'btn gold'));
+  } else {
+    const timing = S.chart.timer && S.chart.timer.id === node.id;
+    actions.append(
+      button('+15 min', () => practice(node, 15), 'btn gold'),
+      button('+30 min', () => practice(node, 30), 'btn gold'),
+      button('+1 h', () => practice(node, 60), 'btn gold'),
+      timing ? button('Stop and log', stopTimer, 'btn') : button('Start timer', () => startTimer(node), 'btn'),
+    );
+  }
+
+  open.hidden = !node.url;
+  if (node.url) open.setAttribute('href', node.url);
+  else open.removeAttribute('href');
+
+  clear(links);
+  const groups = [
+    ['Comes after', prerequisitesOf(S.chart, node.id), (other) => removeLink(S.chart, other.id, node.id)],
+    ['Leads to', dependentsOf(S.chart, node.id), (other) => removeLink(S.chart, node.id, other.id)],
+  ];
+  for (const [label, list, unlink] of groups) {
+    if (!list.length) continue;
+    const row = el('div', { class: 'link-row' }, [el('span', { class: 'field-label', text: label })]);
+    for (const other of list) {
+      row.append(el('span', { class: 'chip' }, [
+        button(other.name, () => select(other.id), 'chip-name'),
+        el('button', { type: 'button', class: 'chip-x', 'aria-label': `Remove link with ${other.name}`, text: 'Remove', onclick: () => { pushUndo(); unlink(other); changed(); } }),
+      ]));
+    }
+    links.append(row);
+  }
+}
+
+// --- pointer input ----------------------------------------------------------
+
+const pointers = new Map();
+let gesture = null;
+let lastTap = { t: 0, x: 0, y: 0 };
+
+function localPoint(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+function startSingle(p) {
+  const w = toWorld(S.view, p.x, p.y);
+  const hit = nodeAt(S.chart, S.info, w.x, w.y, S.cam.k);
+  gesture = { type: hit ? 'node' : 'pan', node: hit, sx: p.x, sy: p.y, cx: S.cam.x, cy: S.cam.y, nx: hit ? hit.x : 0, ny: hit ? hit.y : 0, moved: false };
+}
+
+function startPinch() {
+  const [a, b] = [...pointers.values()];
+  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  gesture = { type: 'pinch', d0: Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), k0: S.cam.k, anchor: toWorld(S.view, mid.x, mid.y), moved: true };
+}
+
+function zoomAbout(anchor, screen, k) {
+  S.cam.k = Math.max(0.15, Math.min(3, k));
+  S.cam.x = anchor.x - (screen.x - S.view.w / 2) / S.cam.k;
+  S.cam.y = anchor.y - (screen.y - S.view.h / 2) / S.cam.k;
+  camTween = null;
+  render();
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, localPoint(e));
+  camTween = null;
+  if (pointers.size === 1) startSingle(pointers.get(e.pointerId));
+  else if (pointers.size === 2) startPinch();
+});
+
+canvas.addEventListener('pointermove', (e) => {
+  if (!pointers.has(e.pointerId) || !gesture) return;
+  const p = localPoint(e);
+  pointers.set(e.pointerId, p);
+  if (gesture.type === 'pinch') {
+    if (pointers.size < 2) return;
+    const [a, b] = [...pointers.values()];
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    zoomAbout(gesture.anchor, mid, gesture.k0 * (Math.hypot(a.x - b.x, a.y - b.y) / gesture.d0));
+    return;
+  }
+  const dx = p.x - gesture.sx;
+  const dy = p.y - gesture.sy;
+  if (!gesture.moved && Math.hypot(dx, dy) < 7) return;
+  if (!gesture.moved) {
+    gesture.moved = true;
+    if (gesture.type === 'node' && S.linking) gesture.type = 'pan';
+    if (gesture.type === 'node') pushUndo();
+  }
+  if (gesture.type === 'node') {
+    gesture.node.x = Math.round(gesture.nx + dx / S.cam.k);
+    gesture.node.y = Math.round(gesture.ny + dy / S.cam.k);
+  } else {
+    S.cam.x = gesture.cx - dx / S.cam.k;
+    S.cam.y = gesture.cy - dy / S.cam.k;
+  }
+  render();
+});
+
+function endPointer(e) {
+  if (!pointers.has(e.pointerId)) return;
+  const p = pointers.get(e.pointerId);
+  pointers.delete(e.pointerId);
+  const g = gesture;
+  if (pointers.size === 1) {
+    // One finger left after a pinch: carry on as a pan, never as a tap.
+    startSingle([...pointers.values()][0]);
+    gesture.type = 'pan';
+    gesture.node = null;
+    gesture.moved = true;
+    return;
+  }
+  gesture = null;
+  if (!g || e.type === 'pointercancel') return;
+  if (g.moved) {
+    if (g.type === 'node') { scheduleSave(); refreshHud(); }
+    return;
+  }
+  tap(g.node, p);
+}
+
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+
+function tap(node, p) {
+  const now = performance.now();
+  if (node) {
+    lastTap = { t: 0, x: 0, y: 0 };
+    if (S.linking) return linkTap(node);
+    return select(node.id);
+  }
+  const double = now - lastTap.t < 380 && Math.hypot(p.x - lastTap.x, p.y - lastTap.y) < 28;
+  lastTap = { t: now, x: p.x, y: p.y };
+  if (S.linking) return;
+  if (double) {
+    lastTap.t = 0;
+    const w = toWorld(S.view, p.x, p.y);
+    return addSkillAt(w.x, w.y);
+  }
+  if (S.sel) select(null);
+}
+
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const p = localPoint(e);
+  const unit = e.deltaMode === 1 ? 16 : 1;
+  const factor = Math.exp(-e.deltaY * unit * (e.ctrlKey ? 0.01 : 0.0016));
+  zoomAbout(toWorld(S.view, p.x, p.y), p, S.cam.k * factor);
+}, { passive: false });
+
+globalThis.addEventListener('keydown', (e) => {
+  const tag = e.target && e.target.tagName;
+  const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  if (document.querySelector('dialog[open]')) return;
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.key.toLowerCase() === 'z') {
+    if (typing) return;
+    e.preventDefault();
+    return e.shiftKey ? redo() : undo();
+  }
+  if (e.key === 'Escape') {
+    if (S.linking) return setLinking(false);
+    if (S.sel) return select(null);
+    return;
+  }
+  if (typing || mod || e.altKey) return;
+  const key = e.key.toLowerCase();
+  if (key === 'n') { e.preventDefault(); addSkill(); }
+  else if (key === 'l') setLinking(!S.linking, S.linking ? null : S.sel);
+  else if (key === 'f') fitView(false);
+  else if ((e.key === 'Delete' || e.key === 'Backspace') && S.sel) {
+    const node = findNode(S.chart, S.sel);
+    if (node) deleteSkill(node);
+  } else if (e.key.startsWith('Arrow')) {
+    const step = 60 / S.cam.k;
+    if (e.key === 'ArrowLeft') S.cam.x -= step;
+    if (e.key === 'ArrowRight') S.cam.x += step;
+    if (e.key === 'ArrowUp') S.cam.y -= step;
+    if (e.key === 'ArrowDown') S.cam.y += step;
+    e.preventDefault();
+    render();
+  }
+});
+
+// --- dialogs ----------------------------------------------------------------
+
+function confirmDialog(title, message, actionLabel, onConfirm) {
+  openDialog(title, (body, close) => {
+    body.append(
+      el('p', { text: message }),
+      el('div', { class: 'row end' }, [
+        button('Cancel', close, 'btn'),
+        button(actionLabel, () => { close(); onConfirm(); }, 'btn danger'),
+      ]),
+    );
+  });
+}
+
+function templateButtons(body, close) {
+  const list = el('div', { class: 'choices' });
+  for (const t of TEMPLATES) {
+    list.append(el('button', { type: 'button', class: 'choice', onclick: () => { close(); replaceChart(chartFromTemplate(t.key)); } }, [
+      el('strong', { text: t.title }),
+      el('span', { text: t.blurb }),
+    ]));
+  }
+  list.append(el('button', { type: 'button', class: 'choice', onclick: () => { close(); replaceChart(createChart('My chart')); toast('Double-tap the sky, or choose Add skill, to place your first star.', 7000); } }, [
+    el('strong', { text: 'Blank chart' }),
+    el('span', { text: 'Start with an empty sky.' }),
+  ]));
+  body.append(list);
+}
+
+function replaceChart(chart) {
+  pushUndo();
+  setChart(chart);
+  saveNow();
+}
+
+function welcomeDialog() {
+  openDialog(APP_NAME, (body, close) => {
+    body.append(
+      el('p', { class: 'lede', text: 'Map what you want to learn as a night sky. Each hour of practice makes a star burn hotter, and bright stars open the ones beyond them.' }),
+      el('p', { class: 'fine', text: 'Your chart stays in this browser. Nothing is sent anywhere, and you can lock it with a passphrase from the menu.' }),
+      button('Explore the sample chart', close, 'btn gold wide'),
+      el('h3', { text: 'Or start your own' }),
+    );
+    templateButtons(body, close);
+  });
+}
+
+function newChartDialog() {
+  openDialog('New chart', (body, close) => {
+    body.append(el('p', { text: 'This replaces the chart on screen. Undo brings the old one back, and a backup keeps it for good.' }));
+    templateButtons(body, close);
+  });
+}
+
+function renameDialog() {
+  openDialog('Chart name', (body, close) => {
+    const input = el('input', { type: 'text', maxlength: LIMITS.title, value: S.chart.title, autocomplete: 'off' });
+    const form = el('form', { onsubmit: (e) => {
+      e.preventDefault();
+      const title = cleanText(input.value, LIMITS.title);
+      if (title && title !== S.chart.title) { pushUndo(); S.chart.title = title; changed(); }
+      close();
+    } }, [field('Name', input), el('div', { class: 'row end' }, [el('button', { type: 'submit', class: 'btn gold', text: 'Save name' })])]);
+    body.append(form);
+    input.select();
+  });
+}
+
+function nextDialog() {
+  openDialog('What next', (body, close) => {
+    const picks = suggestNext(S.chart, 3);
+    if (!picks.length) {
+      body.append(el('p', { text: S.chart.nodes.length ? 'Every open skill is complete. Add a new one to keep going.' : 'Add a skill to get a suggestion.' }));
+    } else {
+      body.append(el('p', { text: 'The best places to spend your next session:' }));
+      const list = el('div', { class: 'choices' });
+      for (const pick of picks) {
+        list.append(el('button', { type: 'button', class: 'choice', onclick: () => { close(); select(pick.node.id); } }, [
+          el('strong', { text: pick.node.name }),
+          el('span', { text: pick.reason }),
+        ]));
+      }
+      body.append(list);
+    }
+    const days = recentActivity(S.chart, today(), 84);
+    const peak = Math.max(60, ...days.map((d) => d.m));
+    const strip = el('div', { class: 'heat', role: 'img', 'aria-label': `Practice over the last 12 weeks: ${days.filter((d) => d.m > 0).length} active days` });
+    for (const d of days) {
+      const cell = el('i', { title: `${d.d}: ${formatMinutes(d.m)}` });
+      if (d.m > 0) cell.style.setProperty('opacity', String(0.3 + 0.7 * Math.min(1, d.m / peak)));
+      else cell.className = 'empty';
+      strip.append(cell);
+    }
+    body.append(el('h3', { text: 'Last 12 weeks' }), strip);
+  });
+}
+
+function listDialog() {
+  openDialog('All skills', (body, close) => {
+    if (!S.chart.nodes.length) return body.append(el('p', { text: 'This chart has no skills yet.' }));
+    const order = { active: 0, open: 1, locked: 2, mastered: 3 };
+    const words = { active: 'In progress', open: 'Ready to start', locked: 'Waiting on earlier skills', mastered: 'Complete' };
+    const nodes = [...S.chart.nodes].sort((a, b) => order[S.info.get(a.id).status] - order[S.info.get(b.id).status] || (a.name < b.name ? -1 : 1));
+    const list = el('div', { class: 'choices' });
+    for (const node of nodes) {
+      const info = S.info.get(node.id);
+      const detail = node.kind === 'milestone' ? words[info.status] : `${words[info.status]}. Level ${info.level}, ${formatMinutes(minutesOf(node))}`;
+      list.append(el('button', { type: 'button', class: 'choice', onclick: () => { close(); select(node.id); } }, [
+        el('strong', { text: node.name }),
+        el('span', { text: detail }),
+      ]));
+    }
+    body.append(list);
+  });
+}
+
+function download(blob, filename) {
+  const href = URL.createObjectURL(blob);
+  const a = el('a', { href, download: filename });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 60000);
+}
+
+function fileStem() {
+  const slug = S.chart.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'chart';
+  return `${slug}-${today()}`;
+}
+
+function exportDialog() {
+  openDialog('Export backup', (body) => {
+    const pass = el('input', { type: 'password', autocomplete: 'new-password', maxlength: 256 });
+    const message = el('p', { class: 'fine', role: 'status' });
+    const out = el('textarea', { rows: 5, readonly: true, hidden: true, 'aria-label': 'Backup text' });
+
+    const make = async () => {
+      const plain = JSON.stringify(S.chart);
+      if (S.vault) return JSON.stringify(await sealWithKey(S.vault, plain));
+      if (!pass.value) return plain;
+      const problem = passphraseProblem(pass.value);
+      if (problem) throw new Error(problem);
+      message.textContent = 'Encrypting…';
+      return JSON.stringify(await seal(plain, pass.value));
+    };
+    const run = async (then) => {
+      try {
+        const text = await make();
+        message.textContent = '';
+        await then(text);
+      } catch (err) {
+        message.textContent = err.message;
+      }
+    };
+
+    body.append(
+      el('p', { text: S.vault
+        ? 'This chart is locked with a passphrase, so the backup is encrypted with the same one.'
+        : 'A backup is one small file with your whole chart. Add a passphrase to encrypt it, or leave it empty for a plain file.' }),
+      S.vault ? null : field('Passphrase for this backup (optional)', pass),
+      el('div', { class: 'row' }, [
+        EMBEDDED ? null : button('Download backup', () => run(async (text) => {
+          download(new Blob([text], { type: 'application/json' }), `${fileStem()}.constellate.json`);
+          message.textContent = 'Backup saved to your downloads.';
+        }), 'btn gold'),
+        button('Copy backup text', () => run(async (text) => {
+          out.value = text;
+          out.hidden = false;
+          out.select();
+          try {
+            await navigator.clipboard.writeText(text);
+            message.textContent = 'Backup text copied.';
+          } catch {
+            message.textContent = 'Copy the selected text below.';
+          }
+        }), EMBEDDED ? 'btn gold' : 'btn'),
+      ]),
+      message,
+      out,
+    );
+  });
+}
+
+function importDialog() {
+  openDialog('Import backup', (body, close) => {
+    const file = el('input', { type: 'file', accept: '.json,application/json' });
+    const paste = el('textarea', { rows: 4, placeholder: 'Or paste backup text here', 'aria-label': 'Backup text' });
+    const pass = el('input', { type: 'password', autocomplete: 'off', maxlength: 256 });
+    const passField = field('Passphrase for this backup', pass);
+    passField.hidden = true;
+    const message = el('p', { class: 'fine', role: 'status' });
+
+    const load = async () => {
+      let text = paste.value;
+      if (file.files && file.files[0]) {
+        if (file.files[0].size > MAX_IMPORT_CHARS) throw new Error('That file is too large to be a Constellate backup.');
+        text = await file.files[0].text();
+      }
+      if (!text.trim()) throw new Error('Choose a backup file or paste backup text first.');
+      if (text.length > MAX_IMPORT_CHARS) throw new Error('That is too large to be a Constellate backup.');
+      let data;
+      try { data = JSON.parse(text); } catch { throw new Error('That is not a Constellate backup.'); }
+      if (isEnvelope(data)) {
+        if (!pass.value) {
+          passField.hidden = false;
+          pass.focus();
+          throw new Error('This backup is encrypted. Enter its passphrase, then choose Import again.');
+        }
+        message.textContent = 'Decrypting…';
+        try { data = JSON.parse(await unseal(data, pass.value)); } catch (err) {
+          throw new Error(err instanceof SyntaxError ? 'This backup is damaged.' : err.message);
+        }
+      }
+      return sanitizeChart(data);
+    };
+
+    body.append(
+      el('p', { text: 'Importing replaces the chart on screen. Undo brings the old one back.' }),
+      field('Backup file', file),
+      paste,
+      passField,
+      el('div', { class: 'row end' }, [button('Import', async () => {
+        try {
+          const chart = await load();
+          close();
+          replaceChart(chart);
+          toast(`Imported ${chart.title}.`);
+        } catch (err) {
+          message.textContent = err.message;
+        }
+      }, 'btn gold')]),
+      message,
+    );
+  });
+}
+
+function passphraseDialog() {
+  openDialog(S.vault ? 'Change passphrase' : 'Lock with a passphrase', (body, close) => {
+    const a = el('input', { type: 'password', autocomplete: 'new-password', maxlength: 256 });
+    const b = el('input', { type: 'password', autocomplete: 'new-password', maxlength: 256 });
+    const message = el('p', { class: 'fine', role: 'status' });
+    const form = el('form', { onsubmit: async (e) => {
+      e.preventDefault();
+      const problem = passphraseProblem(a.value);
+      if (problem) { message.textContent = problem; return; }
+      if (a.value !== b.value) { message.textContent = 'The two entries do not match.'; return; }
+      message.textContent = 'Encrypting…';
+      try {
+        S.vault = await createVaultKey(a.value);
+        await saveNow();
+        close();
+        toast('Chart locked. It is now saved encrypted on this device.', 4500);
+      } catch {
+        message.textContent = 'This browser could not encrypt the chart. Open Constellate over https or from localhost.';
+      }
+    } }, [
+      el('p', { text: 'The chart is encrypted before it is saved in this browser, and you will be asked for the passphrase each time you open it.' }),
+      el('p', { class: 'warn', text: 'There is no reset. If you forget the passphrase, the chart cannot be recovered.' }),
+      field('New passphrase', a, 'At least 10 characters. A few random words work well.'),
+      field('Type it again', b),
+      el('div', { class: 'row end' }, [el('button', { type: 'submit', class: 'btn gold', text: S.vault ? 'Change passphrase' : 'Lock chart' })]),
+      message,
+    ]);
+    body.append(form);
+    if (S.vault) {
+      body.append(el('div', { class: 'row' }, [button('Remove passphrase', () => {
+        close();
+        confirmDialog('Remove passphrase', 'The chart will be saved in this browser without encryption.', 'Remove passphrase', async () => {
+          S.vault = null;
+          await saveNow();
+          toast('Passphrase removed.');
+        });
+      }, 'btn danger')]));
+    }
+  });
+}
+
+function unlockDialog(envelope) {
+  openDialog('Unlock your chart', (body, close) => {
+    const pass = el('input', { type: 'password', autocomplete: 'current-password', maxlength: 256 });
+    const message = el('p', { class: 'fine', role: 'status' });
+    const form = el('form', { onsubmit: async (e) => {
+      e.preventDefault();
+      message.textContent = 'Unlocking…';
+      try {
+        const key = await vaultKeyFor(pass.value, envelope);
+        const chart = sanitizeChart(JSON.parse(await unsealWithKey(key, envelope)));
+        S.vault = key;
+        S.locked = false;
+        pass.value = '';
+        close();
+        setChart(chart, { save: false });
+      } catch (err) {
+        message.textContent = err instanceof SyntaxError ? 'The saved chart is damaged.' : err.message;
+        pass.select();
+      }
+    } }, [
+      field('Passphrase', pass),
+      el('div', { class: 'row end' }, [el('button', { type: 'submit', class: 'btn gold', text: 'Unlock' })]),
+      message,
+    ]);
+    body.append(form, el('div', { class: 'row' }, [button('Erase and start over', () => {
+      confirmDialog('Erase the locked chart', 'This deletes the encrypted chart from this browser for good. It cannot be undone.', 'Erase chart', () => {
+        S.locked = false;
+        S.vault = null;
+        close();
+        setChart(sampleChart(today()));
+        saveNow();
+        welcomeDialog();
+      });
+    }, 'btn quiet')]));
+    pass.focus();
+  }, { sticky: true });
+}
+
+function pictureDialog() {
+  const w = 1600;
+  const h = 1200;
+  const off = el('canvas', { width: w, height: h });
+  const octx = off.getContext('2d');
+  const cam = fitCamera(S.chart, w, h - 120, 150);
+  cam.y -= 40 / cam.k;
+  drawSky(octx, { w, h, dpr: 1, cam }, { chart: S.chart, info: S.info, selId: null, linkFrom: null, timerId: null, bursts: [], now: 0 });
+  const t = totalsOf(S.chart);
+  octx.fillStyle = 'rgba(240, 233, 214, 0.96)';
+  octx.textAlign = 'left';
+  octx.textBaseline = 'top';
+  octx.font = 'italic 46px "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif';
+  octx.fillText(S.chart.title, 56, 48);
+  octx.font = '22px "Avenir Next", "Segoe UI", system-ui, sans-serif';
+  octx.fillStyle = 'rgba(190, 206, 236, 0.9)';
+  octx.fillText(`${formatMinutes(t.minutes)} practiced, ${t.lit} of ${t.count} lit`, 58, 108);
+
+  off.toBlob((blob) => {
+    if (!blob) return toast('This browser could not make the picture.');
+    const href = URL.createObjectURL(blob);
+    openDialog('Picture of your chart', (body) => {
+      body.append(
+        el('img', { class: 'preview', src: href, alt: `Star map of ${S.chart.title}` }),
+        EMBEDDED ? null : el('div', { class: 'row' }, [button('Download picture', () => download(blob, `${fileStem()}.png`), 'btn gold')]),
+        el('p', { class: 'fine', text: `${EMBEDDED ? 'Press and hold the picture to save or share it.' : 'On a phone you can also press and hold the picture to save or share it.'} It shows skill names and progress, so share it only where you are happy for those to be seen.` }),
+      );
+    }, { onClose: () => URL.revokeObjectURL(href) });
+  }, 'image/png');
+}
+
+function aboutDialog() {
+  openDialog('Privacy and how it works', (body) => {
+    const points = [
+      'Constellate runs entirely in this browser. It makes no network requests, loads nothing from other sites, and has no accounts, analytics or cookies.',
+      'Your chart is saved in this browser only. Clearing site data removes it, so export a backup now and then.',
+      'A passphrase encrypts the saved chart with AES-256-GCM. The key is derived with PBKDF2-SHA-256 and is held only in memory while the page is open.',
+      `Skills gain a level at 5, 15, 35, 65 and 100 percent of their hours. A skill opens the ones after it at level ${UNLOCK_LEVEL}; a milestone opens them when it is done.`,
+      'Shortcuts: N adds a skill, L links, F fits the chart, Delete removes the selected skill, Ctrl or Cmd with Z undoes.',
+    ];
+    for (const text of points) body.append(el('p', { text }));
+  });
+}
+
+function menuDialog() {
+  openDialog('Menu', (body, close) => {
+    const items = [
+      ['All skills', 'A list you can read and search by keyboard', listDialog],
+      ['Tidy layout', 'Arrange the stars in rings by what comes first', () => { pushUndo(); tidyLayout(S.chart); changed(); fitView(false); }],
+      ['Save a picture', 'A shareable image of the chart', pictureDialog],
+      ['Export backup', 'Download or copy the whole chart', exportDialog],
+      ['Import backup', 'Load a chart from a backup', importDialog],
+      [S.vault ? 'Passphrase' : 'Lock with a passphrase', S.vault ? 'Change or remove the passphrase' : 'Encrypt the chart saved on this device', passphraseDialog],
+      S.vault ? ['Lock now', 'Close the chart until the passphrase is entered', async () => { await saveNow(); globalThis.location.reload(); }] : null,
+      ['Redo', 'Bring back the last undone change', redo],
+      ['New chart', 'Start from a template or a blank sky', newChartDialog],
+      ['Privacy and how it works', 'What is stored, levels and shortcuts', aboutDialog],
+    ];
+    const list = el('div', { class: 'choices' });
+    for (const item of items) {
+      if (!item) continue;
+      list.append(el('button', { type: 'button', class: 'choice', onclick: () => { close(); item[2](); } }, [
+        el('strong', { text: item[0] }),
+        el('span', { text: item[1] }),
+      ]));
+    }
+    body.append(list);
+  });
+}
+
+// --- start ------------------------------------------------------------------
+
+ui.title.addEventListener('click', renameDialog);
+ui.menu.addEventListener('click', menuDialog);
+ui.add.addEventListener('click', addSkill);
+ui.link.addEventListener('click', () => setLinking(!S.linking, S.linking ? null : S.sel));
+ui.next.addEventListener('click', nextDialog);
+ui.fit.addEventListener('click', () => fitView(false));
+ui.undo.addEventListener('click', undo);
+globalThis.addEventListener('resize', resize);
+if (globalThis.ResizeObserver) new ResizeObserver(resize).observe(canvas);
+globalThis.addEventListener('pagehide', () => { if (!S.locked) saveNow(); });
+
+function start() {
+  resize();
+  const raw = storeGet(STORE_KEY);
+  let parsed = null;
+  if (raw) {
+    try { parsed = JSON.parse(raw); } catch { parsed = null; }
+  }
+  if (isEnvelope(parsed)) {
+    S.locked = true;
+    setChart(createChart('Locked chart'), { save: false });
+    unlockDialog(parsed);
+    return;
+  }
+  if (parsed) {
+    try {
+      setChart(sanitizeChart(parsed), { save: false });
+      return;
+    } catch {
+      toast('The saved chart could not be read, so the sample is shown instead.', 6000);
+    }
+  }
+  setChart(sampleChart(today()), { save: false });
+  if (!raw) welcomeDialog();
+}
+
+start();
+
+})();
+</script>
+</body>
+</html>

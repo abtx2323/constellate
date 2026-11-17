@@ -1,0 +1,26 @@
+# Secrets and credentials: never commit these
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+id_rsa*
+id_ed25519*
+credentials.json
+secrets.*
+
+# Personal chart backups (they hold your own data)
+*.constellate.json
+
+# Tooling and OS noise
+node_modules/
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+coverage/

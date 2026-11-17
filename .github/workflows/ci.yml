@@ -1,0 +1,45 @@
+# Runs the tests, the build check and the security policy check.
+# Hardening choices:
+#   - read-only token, no secrets, no write permissions
+#   - no marketplace actions at all: checkout is done with plain git, so no
+#     third-party code runs here and there is nothing to pin or to hijack
+#   - runs only on pushes to main and on ordinary pull requests
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out with plain git
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          echo "::add-mask::${auth}"
+          git init -q .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git -c "http.extraheader=AUTHORIZATION: basic ${auth}" fetch -q --depth=1 origin "${GITHUB_SHA}"
+          git checkout -q FETCH_HEAD
+
+      - name: Unit tests
+        run: node --test
+
+      - name: Single-file build is up to date
+        run: node scripts/build.mjs --check
+
+      - name: Security policy check
+        run: node scripts/check-security.mjs
