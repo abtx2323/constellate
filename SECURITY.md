@@ -73,4 +73,4 @@ A private repository is exactly as safe as the accounts that can reach it.
 
 ## What this does not claim
 
-No software is secure in every respect, and this document does not say otherwise. The claims above are the ones backed by code and tests in this repository. The CI workflow's manual checkout step has not yet been exercised on GitHub's runners from this copy; the first push will confirm it.
+No software is secure in every respect, and this document does not say otherwise. The claims above are the ones backed by code and tests in this repository.

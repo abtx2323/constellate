@@ -51,15 +51,22 @@ try "protect $branch: no force-push, no deletion, linear history, applies to adm
 echo
 echo "==> Audit of $repo"
 show() { printf '  %-28s %s\n' "$1" "$2"; }
-show "visibility" "$(gh api "repos/$repo" --jq .visibility 2>/dev/null || echo unknown)"
-show "people with access" "$(gh api "repos/$repo/collaborators" --jq '[.[].login] | join(", ")' 2>/dev/null || echo unknown)"
-show "deploy keys" "$(gh api "repos/$repo/keys" --jq length 2>/dev/null || echo unknown)"
-show "webhooks" "$(gh api "repos/$repo/hooks" --jq length 2>/dev/null || echo unknown)"
-show "Actions secrets" "$(gh api "repos/$repo/actions/secrets" --jq .total_count 2>/dev/null || echo unknown)"
-if gh api "repos/$repo/pages" >/dev/null 2>&1; then
+# Prints the value, or "could not read" when the API refuses or fails.
+val() {
+  local out
+  if out="$(gh api "$@" 2>/dev/null)"; then echo "$out"; else echo "could not read"; fi
+}
+show "visibility" "$(val "repos/$repo" --jq .visibility)"
+show "people with access" "$(val "repos/$repo/collaborators" --jq '[.[].login] | join(", ")')"
+show "deploy keys" "$(val "repos/$repo/keys" --jq length)"
+show "webhooks" "$(val "repos/$repo/hooks" --jq length)"
+show "Actions secrets" "$(val "repos/$repo/actions/secrets" --jq .total_count)"
+if pages_err="$(gh api "repos/$repo/pages" 2>&1 >/dev/null)"; then
   show "GitHub Pages" "ENABLED: a Pages site can expose this code publicly. Turn it off."
-else
+elif echo "$pages_err" | grep -q "HTTP 404"; then
   show "GitHub Pages" "off"
+else
+  show "GitHub Pages" "could not read"
 fi
 
 echo
