@@ -4,7 +4,7 @@ Constellate holds something personal: what you are trying to get better at and h
 
 ## Reporting a problem
 
-This is a private repository. Open an issue in it, or contact the owner directly. Do not put secrets or personal chart data in an issue.
+Please report security problems privately through GitHub's "Report a vulnerability" button on this repository's Security tab, not in a public issue. Include steps to reproduce, and never include secrets or personal chart data.
 
 ## The app
 
@@ -43,7 +43,6 @@ Checked into the repository and enforced on every push:
 
 Applied to the GitHub repository by `scripts/harden-repo.sh`:
 
-- visibility set to private and verified
 - wiki and projects turned off
 - Dependabot alerts and security updates on
 - Actions limited to workflows and actions that live in this repository
@@ -51,7 +50,7 @@ Applied to the GitHub repository by `scripts/harden-repo.sh`:
 - secret scanning and push protection, where the plan includes them
 - default branch protected against force-pushes and deletion, with linear history, including for admins, where the plan includes it
 
-The script prints which settings were applied and which were not available, then an audit: visibility, who has access, deploy keys, webhooks, Actions secrets and whether GitHub Pages is on.
+The script never changes the repository's visibility. It prints which settings were applied and which were not available, then an audit: visibility, who has access, deploy keys, webhooks, Actions secrets and whether GitHub Pages is on.
 
 ### Plan-dependent features
 
@@ -59,7 +58,7 @@ GitHub's documentation lists secret scanning, push protection and code scanning 
 
 ## What only you can do
 
-A private repository is exactly as safe as the accounts that can reach it.
+A repository, and any copy of it you host, is exactly as safe as the accounts that can push to it.
 
 1. **Turn on two-factor authentication** for your GitHub account, ideally a passkey or hardware key, and store the recovery codes offline.
 2. **Review who has access** (Settings → Collaborators). Remove anyone who does not need it.
@@ -67,7 +66,7 @@ A private repository is exactly as safe as the accounts that can reach it.
 4. **Review authorized OAuth and GitHub Apps** (account Settings → Applications). Each one with repository access is another way in.
 5. **Protect your SSH keys with a passphrase** and remove old keys from your account.
 6. **Sign your commits** and turn on vigilant mode so unsigned commits are flagged.
-7. **Do not enable GitHub Pages** for this repository. A Pages site built from a private repository is public on most plans.
+7. **Keep chart data out of anything you publish.** If you host the app with GitHub Pages or anywhere else, publish only the app files, never a chart or backup.
 8. **Never commit a chart backup.** `*.constellate.json` is ignored for that reason.
 9. **Keep the device itself safe:** disk encryption, a screen lock, and a browser profile you do not share.
 

@@ -65,13 +65,15 @@ A skill opens the ones after it when it reaches level 2. A milestone opens them 
 
 The full threat model, the repository hardening and the limits of all this are in [SECURITY.md](SECURITY.md).
 
-## Put it on GitHub as a private repository
+## Harden your own copy
+
+If you fork or copy Constellate into your own GitHub repository, this applies recommended security settings and prints an audit:
 
 ```sh
-./scripts/create-private-repo.sh <repo-name>
+./scripts/harden-repo.sh [owner/repo]
 ```
 
-This runs the checks, creates the repository as **private**, pushes, confirms the visibility, and applies the settings in `scripts/harden-repo.sh`. Run `./scripts/harden-repo.sh` again at any time for a fresh audit.
+It turns on Dependabot, locks down Actions, enables secret scanning and branch protection where your plan includes them, and never changes the repository's visibility. Run it again at any time for a fresh audit.
 
 ## Develop
 
@@ -95,4 +97,4 @@ dist/constellate.html    the single-file build
 
 ## License
 
-No license is granted. This is a private project and all rights are reserved by its owner. Add a license before sharing the code.
+[MIT](LICENSE)
