@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Applies security settings to the GitHub repository this folder pushes to,
-# then prints an audit. Safe to run again at any time.
+# then prints an audit. Safe to run again at any time. It never changes the
+# repository's visibility.
 #
 #   ./scripts/harden-repo.sh [owner/repo]
 #
@@ -27,8 +28,6 @@ try() { # try "label" gh-api-args...
 
 echo "==> Hardening $repo"
 
-try "keep the repository private" \
-  -X PATCH "repos/$repo" -f visibility=private
 try "turn off wiki and projects (unused surfaces)" \
   -X PATCH "repos/$repo" -F has_wiki=false -F has_projects=false
 try "delete branches after merge" \
@@ -62,7 +61,7 @@ show "deploy keys" "$(val "repos/$repo/keys" --jq length)"
 show "webhooks" "$(val "repos/$repo/hooks" --jq length)"
 show "Actions secrets" "$(val "repos/$repo/actions/secrets" --jq .total_count)"
 if pages_err="$(gh api "repos/$repo/pages" 2>&1 >/dev/null)"; then
-  show "GitHub Pages" "ENABLED: a Pages site can expose this code publicly. Turn it off."
+  show "GitHub Pages" "on"
 elif echo "$pages_err" | grep -q "HTTP 404"; then
   show "GitHub Pages" "off"
 else
