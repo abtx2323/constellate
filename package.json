@@ -2,6 +2,7 @@
   "name": "constellate",
   "version": "1.0.0",
   "private": true,
+  "license": "MIT",
   "description": "An offline skill-tree canvas that runs entirely in your browser. Skills are stars; practice lights them.",
   "type": "module",
   "engines": { "node": ">=20" },
