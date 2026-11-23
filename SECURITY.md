@@ -39,13 +39,22 @@ Checked into the repository and enforced on every push:
 | The same check before each commit | `.githooks/pre-commit` (enable with `git config core.hooksPath .githooks`) |
 | Secret and key files ignored by default, including chart backups | `.gitignore` |
 | Updates for any action added later | `.github/dependabot.yml` |
-| Owner review on every path | `.github/CODEOWNERS` |
+| Owner listed for every path (review is required only if branch rules ask for code-owner review) | `.github/CODEOWNERS` |
 
-Applied to the GitHub repository by `scripts/harden-repo.sh`:
+Set on this GitHub repository:
+
+- secret scanning and push protection
+- private vulnerability reporting
+- Dependabot alerts and security updates
+- default Actions token read-only, and unable to approve pull requests
+- default branch protected by a ruleset: changes go through a pull request, and force-pushes and deletion are blocked
+- merged branches deleted automatically
+
+`scripts/harden-repo.sh` applies a stricter set to a copy you host yourself:
 
 - wiki and projects turned off
 - Dependabot alerts and security updates on
-- Actions limited to workflows and actions that live in this repository
+- Actions limited to workflows and actions that live in the repository
 - default Actions token read-only, and unable to approve pull requests
 - secret scanning and push protection, where the plan includes them
 - default branch protected against force-pushes and deletion, with linear history, including for admins, where the plan includes it
